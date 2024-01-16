@@ -1,0 +1,209 @@
+
+computational_setup:
+  # Flag for initial or restart calculation
+  # --True: initial condition, False: restart
+  flag_initial: True
+
+  # Maximum iteraction
+  iteration_maximum: 200
+
+  # Governing equations: Navier-Stokes
+  flow_model: Navier-Stokes
+
+
+meshdata_io: 
+  filename_mesh: chimera.msh
+
+
+gas_properties:
+  # Specific heat ratio
+  gamma: 1.40
+  # Universal gas constant (J/K.mol)
+  gas_constant_univ: 8.3144598
+  # Molecular weight of air (kg/mol)
+  molecular_weight: 28.8e-3
+
+
+initial_settings:
+  # Initial conditions 
+  # --Input domain name, for example, Fluid
+  Fluid:
+    # --Density, kg/m^3
+    density_initial: 1.e-2
+    # --Velocities, m/s
+    velocity_initial:
+      - 100.0
+      - 0.0
+      - 0.0
+    # Temperature, K
+    temperature_initial: 300.0
+    # Pressure, Pa <--calculated by EOS
+    #pressure_initial: 300.0
+
+
+boundary_conditions:
+  # Boundary conditions
+  freestream:
+    kind: freestream
+    velocity:
+      - 100.0
+      - 0.0
+      - 0.0
+    density: 1.e-2
+    temperature: 300.0
+  
+  wall:
+    kind: wall
+    temperature: 300.0
+
+  outlet:
+    kind: outlet
+
+  symmetry:
+    kind: symmetry
+
+
+transport_coefficients:
+  # Transport coefficients
+  # Model: Sutherlandlaw or constant
+  kind: sutherlandlaw
+
+  #--Viscosity(Sutherland)
+  viscosity_sutherland:
+    mu0: 1.716e-5
+    t0: 273.15
+    c: 110.4
+
+  #--Viscosity(Constant)
+  viscosity_constant:
+    mu0: 1.8e-5
+    lambda0: 1.e-3
+  
+  # Prandtl numnber
+  prandlt_number: 0.72
+
+
+gradient_setting:
+  # Spatial gradient calculation setting
+  #-- Gree-Gauss (GG) or Weighten GG (WGG)
+  kind_gradient: WGG
+
+  # Flag to use MUSCL
+  flag_muscl: True
+
+  # Slope limiter: minmod, none
+  kind_limiter: minmod
+
+  # Coefficient for MUSCL (0--1)
+  eps_muscl: 0.0
+
+
+numericalflux_setting:
+  advection_scheme: slau2
+  
+
+time_integration:
+  # Time integration settings
+
+  # Time marching scheme: 
+  # --"explicit_euler", "implicit_lusgs"
+  kind_time_scheme: implicit_lusgs
+  #kind_time_scheme: explicit_euler
+
+  # Time marching
+  # --'steady': Steady flow computation, or 'unsteady': Unsteady flow computation
+  kind_steady_mode: unsteady
+
+  # Time stepping
+  # --'local': Local time stepping, or 'global': Global time stepping
+  kind_time_stepping: local
+  #kind_time_stepping: global
+
+  # Time step
+  # --'cfl': detemined by Courant number, 'dt': by constant time step
+  kind_time_determine: cfl
+
+  # Courant number for inner loop in usteady computation
+  # valid when kind_time_determine: cfl
+  courant_number: 5.0
+
+  # constant timestep (s) for innerr loop in usteady computation
+  # valid when kind_time_determine: dt
+  timestep_constant: 1.e-6
+
+  # constant timestep (s) for outer loop (when using LUSGS unsteady simulation)
+  timestep_outer: 1.e-5
+
+  # Temporal accuracy using LUSGS unsteady simulation
+  # --2nd_backward_diff or 1st_backward_diff
+  kind_backward_difference: 2nd_backward_diff
+  #kind_backward_difference: 1st_backward_diff
+
+  # Maximum inner iteration
+  iteration_inner_maximum: 25
+
+  # LUSGS variables
+  lusgs_beta: 1.1
+
+  # Convergence criterion for inner loop: relative residual or absolute
+  # -- relative: True or absolute: False
+  flag_convergence_relative_innerloop: True
+  criterion_convergence_innerloop: 1.e-8
+
+  # Convergence criteria for outer loop: relative residual or absolute
+  # Valid when using steady computation
+  # -- relative: True or absolute: False
+  flag_convergence_relative_outerloop: True
+  criterion_convergence_outerloop: 1.e-8
+
+
+restart_process:
+
+  # Output directory
+  directory_output: output_restart
+
+  # Time series
+  # --True: stored individually as time series, False: stored by overwriting
+  flag_time_series: False
+
+  # Digid for step
+  # --for example, restart_0012.dat will be stored if using digid_step: 4
+  digid_step: 4
+
+  # Restart step for reading
+  restart_step: 500
+
+  # Restart file name (output)
+  file_restart: restart.dat
+  # File name for unsteady model
+  file_unsteady: unsteady.dat
+
+  # Output frequency
+  frequency_output: 1
+
+
+post_process:
+  # Output directory
+  directory_output: output_result
+
+  # Time series
+  # --True: stored individually as time series, False: stored by overwriting
+  flag_time_series: True
+
+  # Digid for step
+  # --for example, tecplot_0012.dat will be stored if using digid_step: 4
+  digid_step: 4
+
+  # Output (Tecplot)  
+  flag_output_tecplot: False
+  filename_output_tecplot: tecplot_flowfield.dat
+
+  # Output (VTK)  
+  flag_output_vtk: True
+  filename_output_vtk: output.vtk
+
+  # Flat to output initial state (iteration=0)
+  flag_output_initial_state: True
+
+  # Output frequency
+  frequency_output: 1
