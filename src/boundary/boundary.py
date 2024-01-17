@@ -94,9 +94,9 @@ class boundary(orbital):
 
       if( bd_kind == self.KIND_BOUNDARY_FREESTREAM ):
         # Freestream condition gives density, velocity, and temperature in control file
-        density_freestream       = config['boundary_conditions'][self.KIND_BOUNDARY_FREESTREAM]['density']
-        velocity_freestream      = config['boundary_conditions'][self.KIND_BOUNDARY_FREESTREAM]['velocity']
-        temperature_freestream   = config['boundary_conditions'][self.KIND_BOUNDARY_FREESTREAM]['temperature']
+        density_freestream       = config['boundary_conditions'][bd_name]['density']
+        velocity_freestream      = config['boundary_conditions'][bd_name]['velocity']
+        temperature_freestream   = config['boundary_conditions'][bd_name]['temperature']
 
         var_primitiv_bd[0,n_face] = density_freestream
         var_primitiv_bd[1,n_face] = velocity_freestream[0]
@@ -108,8 +108,8 @@ class boundary(orbital):
 
       elif( bd_kind == self.KIND_BOUNDARY_TOTAL_PRESS_TEMP ):
         # Inlet parameters given by total pressure and temperature
-        pressure_total_press_temp    = config['boundary_conditions'][self.KIND_BOUNDARY_TOTAL_PRESS_TEMP]['pressure']
-        temperature_total_press_temp = config['boundary_conditions'][self.KIND_BOUNDARY_TOTAL_PRESS_TEMP]['temperature']
+        pressure_total_press_temp    = config['boundary_conditions'][bd_name]['pressure']
+        temperature_total_press_temp = config['boundary_conditions'][bd_name]['temperature']
 
         gamma        =  specfic_heat_ratio-1.0
         gamma_ratio  = (specfic_heat_ratio-1.0)/specfic_heat_ratio
@@ -156,7 +156,7 @@ class boundary(orbital):
 
       elif( bd_kind == self.KIND_BOUNDARY_OUTLET_PRESS_FIXED ):
         # Outlet by static pressure fixed
-        pressure_outlet = config['boundary_conditions'][self.KIND_BOUNDARY_OUTLET_PRESS_FIXED]['pressure']
+        pressure_outlet = config['boundary_conditions'][bd_name]['pressure']
 
         density     = var_primitiv[0,n_cell]
         pressure    = pressure_outlet
@@ -176,8 +176,8 @@ class boundary(orbital):
 
       elif( bd_kind == self.KIND_BOUNDARY_AMBIENT ):
         # Ambient condition
-        pressure_ambient    = config['boundary_conditions'][self.KIND_BOUNDARY_AMBIENT]['pressure']
-        temperature_ambient = config['boundary_conditions'][self.KIND_BOUNDARY_AMBIENT]['temperature']
+        pressure_ambient    = config['boundary_conditions'][bd_name]['pressure']
+        temperature_ambient = config['boundary_conditions'][bd_name]['temperature']
 
         pressure    = pressure_ambient
         temperature = temperature_ambient
@@ -194,7 +194,7 @@ class boundary(orbital):
 
       elif( bd_kind == self.KIND_BOUNDARY_WALL_FIX ):
         # Wall condition
-        temperature_wall = config['boundary_conditions'][self.KIND_BOUNDARY_WALL_FIX]['temperature']
+        temperature_wall = config['boundary_conditions'][bd_name]['temperature']
 
         pressure_tmp     = var_primitiv[5,n_cell]
         gas_constant_tmp = gas_constant

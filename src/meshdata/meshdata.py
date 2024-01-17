@@ -10,6 +10,7 @@
 #
 
 import numpy as np
+from platform import python_version
 from orbital.orbital import orbital
 
 class meshdata(orbital):
@@ -85,6 +86,27 @@ class meshdata(orbital):
     self.kind_coord_cellcenter  = 'coord_cellcenter'
 
     return
+
+
+  def compare_versions(self, version1, version2):
+    parts1 = [int(part) for part in version1.split('.')]
+    parts2 = [int(part) for part in version2.split('.')]
+
+    # バージョン番号の各部分を比較
+    for part1, part2 in zip(parts1, parts2):
+        if part1 < part2:
+            return -1
+        elif part1 > part2:
+            return 1
+
+    # 部分的な比較が同じだった場合、長い方が大きい
+    if len(parts1) < len(parts2):
+        return -1
+    elif len(parts1) > len(parts2):
+        return 1
+
+    # 完全に同じバージョン
+    return 0
 
 
   def set_mesh_routine(self, config):
@@ -416,54 +438,80 @@ class meshdata(orbital):
         print('Program stopped.')
         exit()
       
+      # Version check
+      version_current = python_version()
+      version_3_7_0 = "3.7.0" # 3.7未満ではdict型にインデクスがつかない（OrderedDict()ならつく？）
+      comp_version = self.compare_versions(version_current, version_3_7_0)
+
       # 重複したフェイスの同定-->さかのぼって地道に調べる(Dict型で高速化する、たぶん要素の挿入順が保持される必要があるので>=Python3.7?)
       print('Finding overlapping nodes (inner)...')
-
       flag_face_overlapped     = [False]*num_face_overlap
       flag_face_overlapped_opp = [False]*num_face_overlap
       face_opposite_overlapped = [-1]*num_face_overlap
-      # 要素を辞書に作成する
-      element_dict = {(face2node_overlap[0, n], face2node_overlap[1, n]): n for n in range(num_face_overlap)}
-      # オーバーラップのインデクスを探索
-      for n in range(0,num_face_overlap) :
-        if flag_face_overlapped_opp[n] :
-          continue
-        node_s0 = face2node_overlap[0,n]
-        node_s1 = face2node_overlap[1,n]
-        target_element = (node_s1, node_s0)
-        # 辞書から直接インデックスを取得
-        extracted_value = element_dict.get(target_element, -1)
-        if extracted_value != -1:
-          flag_face_overlapped[n] = True
-          flag_face_overlapped_opp[extracted_value] = True
-          face_opposite_overlapped[n] = extracted_value
-
-      #flag_face_overlapped     = [False]*num_face_overlap
-      #flag_face_overlapped_opp = [False]*num_face_overlap
-      #face_opposite_overlapped = [-1]*num_face_overlap
-      #for n in range(0,num_face_overlap) :
-      #  node_s0 = face2node_overlap[0,n]
-      #  node_s1 = face2node_overlap[1,n]
-      #  if flag_face_overlapped_opp[n] :
-      #    continue
-      #  for m in range(n+1,num_face_overlap) :
-      #    node_n0 = face2node_overlap[0,m]
-      #    node_n1 = face2node_overlap[1,m]
-      #    if node_n0 == node_s1 and node_n1 == node_s0 \
-      #    or node_n0 == node_s0 and node_n1 == node_s1:
-      #      # 重複が判明したフェイスにはTrue判定
-      #      flag_face_overlapped[n] = True
-      #      flag_face_overlapped_opp[m] = True
-      #      # 反対側のFace idを記録しておく
-      #      face_opposite_overlapped[n] = m
-      #      #print('Overlap cell', face2cell_overlap[0,n]+1, face2cell_overlap[0,m]+1, '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
-      #      break
+      if comp_version >= 0:
+        # Dict()を使うことで検索の計算量をO(n)にしている。ただDictにインデクスがないとできないため、Python3.7以降が必要（なはず）
+        # 要素を辞書に作成する
+        element_dict = {(face2node_overlap[0, n], face2node_overlap[1, n]): n for n in range(num_face_overlap)}
+        # オーバーラップのインデクスを探索
+        for n in range(0,num_face_overlap) :
+          if flag_face_overlapped_opp[n] :
+            continue
+          node_s0 = face2node_overlap[0,n]
+          node_s1 = face2node_overlap[1,n]
+          target_element = (node_s1, node_s0)
+          # 辞書から直接インデックスを取得
+          extracted_value = element_dict.get(target_element, -1)
+          if extracted_value != -1:
+            flag_face_overlapped[n] = True
+            flag_face_overlapped_opp[extracted_value] = True
+            face_opposite_overlapped[n] = extracted_value
+      
+      else :
+        # こちらの処理の計算量はO(n^2)に注意。nは格子数
+        print("Python version is lower than 3.7. The computational cost becomes high.")
+        for n in range(0,num_face_overlap) :
+          node_s0 = face2node_overlap[0,n]
+          node_s1 = face2node_overlap[1,n]
+          if flag_face_overlapped_opp[n] :
+            continue
+          for m in range(n+1,num_face_overlap) :
+            node_n0 = face2node_overlap[0,m]
+            node_n1 = face2node_overlap[1,m]
+            if node_n0 == node_s1 and node_n1 == node_s0 \
+            or node_n0 == node_s0 and node_n1 == node_s1:
+              # 重複が判明したフェイスにはTrue判定
+              flag_face_overlapped[n] = True
+              flag_face_overlapped_opp[m] = True
+              # 反対側のFace idを記録しておく
+              face_opposite_overlapped[n] = m
+              #print('Overlap cell', face2cell_overlap[0,n]+1, face2cell_overlap[0,m]+1, '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
+              break
 
 
       # Boundary faceと隣接セルの同定
       # 0-->隣接セル、1-->Boundary ID
       print('Finding overlapping nodes (boundary)...')
       face2cell_boundary = np.zeros(2*num_face_bar).reshape(2,num_face_bar).astype(int)
+      if comp_version >= 0:
+        element_dict = {(face2node_overlap[0, n], face2node_overlap[1, n]): n for n in range(num_face_overlap)}
+        #face2cell_boundary = np.zeros((2, num_face_bar), dtype=int)
+        for m in range(num_face_bar):
+          node_n0 = face2node_boundary[0, m]
+          node_n1 = face2node_boundary[1, m]
+          target_element = (node_n0, node_n1) #if node_n0 < node_n1 else (node_n1, node_n0)
+
+          #n = element_dict.get(target_element, -1)
+          n = element_dict.get(target_element, element_dict.get((node_n1, node_n0), -1))
+          if n != -1 and not flag_face_overlapped[n]:
+            node_s0, node_s1 = face2node_overlap[0, n], face2node_overlap[1, n]
+            face2cell_boundary[0, m] = face2cell_overlap[0, n]
+            face2cell_boundary[1, m] = face2tag_boundary[m]
+        
+            if node_n0 != node_s0 or node_n1 != node_s1:
+              face2node_boundary[0, m] = node_n1
+              face2node_boundary[1, m] = node_n0
+
+      else :
       #for n in range(0,num_face_overlap) :
       #  # 境界フェイスは重複はしない
       #  if not flag_face_overlapped[n]:
@@ -481,24 +529,25 @@ class meshdata(orbital):
       #          face2node_boundary[0,m] = node_n1
       #          face2node_boundary[1,m] = node_n0
       #        print('Cell',face2cell_boundary[0,m]+1,'-boundary attribute:',face2cell_boundary[1,m], '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
-      for m in range(0, num_face_bar) :
-        node_n0 = face2node_boundary[0,m]
-        node_n1 = face2node_boundary[1,m]
-        for n in range(0,num_face_overlap) :
-          # 境界フェイスは重複はしない
-          if not flag_face_overlapped[n]:
-            node_s0 = face2node_overlap[0,n]
-            node_s1 = face2node_overlap[1,n]
-            if node_n0 == node_s1 and node_n1 == node_s0 \
-            or node_n0 == node_s0 and node_n1 == node_s1:
-              face2cell_boundary[0,m] = face2cell_overlap[0,n]
-              face2cell_boundary[1,m] = face2tag_boundary[m]
-              # Inner faceとBoundary faceでNodeの方向が一致してない場合は、Boundary faceのノードを入れ替える
-              if node_n0 == node_s1 and node_n1 == node_s0: 
-                face2node_boundary[0,m] = node_n1
-                face2node_boundary[1,m] = node_n0
-              break
-        #print('Cell',face2cell_boundary[0,m]+1,'-boundary attribute:',face2cell_boundary[1,m], '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
+        for m in range(0, num_face_bar) :
+          node_n0 = face2node_boundary[0,m]
+          node_n1 = face2node_boundary[1,m]
+          for n in range(0,num_face_overlap) :
+            # 境界フェイスは重複はしない
+            if not flag_face_overlapped[n]:
+              node_s0 = face2node_overlap[0,n]
+              node_s1 = face2node_overlap[1,n]
+              if node_n0 == node_s1 and node_n1 == node_s0 \
+              or node_n0 == node_s0 and node_n1 == node_s1:
+                print(m,n)
+                face2cell_boundary[0,m] = face2cell_overlap[0,n]
+                face2cell_boundary[1,m] = face2tag_boundary[m]
+                # Inner faceとBoundary faceでNodeの方向が一致してない場合は、Boundary faceのノードを入れ替える
+                if node_n0 == node_s1 and node_n1 == node_s0: 
+                  face2node_boundary[0,m] = node_n1
+                  face2node_boundary[1,m] = node_n0
+                break
+          #print('Cell',face2cell_boundary[0,m]+1,'-boundary attribute:',face2cell_boundary[1,m], '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
 
       # 重複したフェイスの削除
       # --重複していないフェイスの数(Inner face+Boundary face)

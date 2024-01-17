@@ -98,6 +98,7 @@ class gradient(orbital):
     # Initialize
     var_gradient[:,:,:] = 0.0
 
+    start_time = time.time()
     # --Inner loop
     fact_m = 0.5
     fact_p = 0.5
@@ -139,6 +140,9 @@ class gradient(orbital):
       var_gradient[0,:,n_cell] = var_gradient[0,:,n_cell]*inv_volume
       var_gradient[1,:,n_cell] = var_gradient[1,:,n_cell]*inv_volume
 
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (gradient:get_gradient)',elapsed_time)
+
     return var_gradient
 
 
@@ -174,7 +178,7 @@ class gradient(orbital):
     #del_face = np.zeros(num_primitiv).reshape(num_primitiv)
 
     # Searching maximum and minimum variables on neigboring cell
-    #start_time = time.time()
+    start_time = time.time()
     var_neig_maxmin[0,:,:] = var_primitiv[:,:]
     var_neig_maxmin[1,:,:] = var_primitiv[:,:]
     for n_face in range(0,num_face):
@@ -184,21 +188,27 @@ class gradient(orbital):
       #var_neig_maxmin[0,:,n_cell_neig] = [max(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) for m in range(num_primitiv)]
       #var_neig_maxmin[1,:,n_cell_self] = [min(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) for m in range(num_primitiv)]
       #var_neig_maxmin[1,:,n_cell_neig] = [min(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) for m in range(num_primitiv)]
-      for m in range(0,num_primitiv):
-        var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
-        var_neig_maxmin[0,m,n_cell_neig] = max(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
-        var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
-        var_neig_maxmin[1,m,n_cell_neig] = min(var_neig_maxmin[1,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
+      var_neig_maxmin[0, :, n_cell_self] = np.maximum(var_neig_maxmin[0, :, n_cell_self], var_primitiv[:, n_cell_neig])
+      var_neig_maxmin[0, :, n_cell_neig] = np.maximum(var_neig_maxmin[0, :, n_cell_neig], var_primitiv[:, n_cell_self])
+      var_neig_maxmin[1, :, n_cell_self] = np.minimum(var_neig_maxmin[1, :, n_cell_self], var_primitiv[:, n_cell_neig])
+      var_neig_maxmin[1, :, n_cell_neig] = np.minimum(var_neig_maxmin[1, :, n_cell_neig], var_primitiv[:, n_cell_self])
+      #for m in range(0,num_primitiv):
+      #  var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
+      #  var_neig_maxmin[0,m,n_cell_neig] = max(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
+      #  var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
+      #  var_neig_maxmin[1,m,n_cell_neig] = min(var_neig_maxmin[1,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
     for n_face in range(0,num_face_bd):
       n_cell_self = face2cell_bd[0,n_face]
-      for m in range(0,num_primitiv):
-        var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv_bd[m,n_face]) 
-        var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv_bd[m,n_face]) 
-    #elapsed_time = time.time() - start_time
-    #print(elapsed_time)
+      var_neig_maxmin[0, :, n_cell_self] = np.maximum(var_neig_maxmin[0, :, n_cell_self], var_primitiv_bd[:, n_face])
+      var_neig_maxmin[1, :, n_cell_self] = np.minimum(var_neig_maxmin[1, :, n_cell_self], var_primitiv_bd[:, n_face])
+      #for m in range(0,num_primitiv):
+      #  var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv_bd[m,n_face]) 
+      #  var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv_bd[m,n_face]) 
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (gradient:slope limiter1)',elapsed_time)
 
 
-    #start_time = time.time()
+    start_time = time.time()
     if kind_limiter == 'minmod' :
       # Inner faces
       for n_face in range(0,num_face):
@@ -216,28 +226,33 @@ class gradient(orbital):
           grad_face =-(var_gradient[0,m,n_cell_self]*vec_x+var_gradient[1,m,n_cell_self]*vec_y+var_gradient[2,m,n_cell_self]*vec_z)
           if grad_face >= 0.0:
             grad_face = grad_face + 1.e-20
-          else :
-            grad_face = grad_face - 1.e-20
-          if grad_face >= 0.0:
             del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
           else :
+            grad_face = grad_face - 1.e-20
             del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
+          #if grad_face >= 0.0:
+          #  del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
+          #else :
+          #  del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
           del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
           var_limiter[m,n_cell_self] = min(var_limiter[m,n_cell_self], del_face)
+          #var_limiter[m,n_cell_self] = np.minimum(var_limiter[m, n_cell_self], del_face)
 
           # --neigboring side cell
           grad_face = (var_gradient[0,m,n_cell_neig]*vec_x+var_gradient[1,m,n_cell_neig]*vec_y+var_gradient[2,m,n_cell_neig]*vec_z)
           if grad_face >= 0.0:
             grad_face = grad_face + 1.e-20
-          else :
-            grad_face = grad_face - 1.e-20
-          if grad_face >= 0.0:
             del_face  = var_neig_maxmin[0,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
           else :
+            grad_face = grad_face - 1.e-20
             del_face  = var_neig_maxmin[1,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
+          #if grad_face >= 0.0:
+          #  del_face  = var_neig_maxmin[0,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
+          #else :
+          #  del_face  = var_neig_maxmin[1,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
           del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
           var_limiter[m,n_cell_neig] = min(var_limiter[m,n_cell_neig], del_face)
-
+          #var_limiter[m, n_cell_neig] = np.minimum(var_limiter[m, n_cell_neig], del_face)
 
       # Boundary faces
       for n_face in range(0,num_face_bd):
@@ -253,19 +268,21 @@ class gradient(orbital):
           grad_face =-(var_gradient[0,m,n_cell_self]*vec_x+var_gradient[1,m,n_cell_self]*vec_y+var_gradient[2,m,n_cell_self]*vec_z)
           if grad_face >= 0.0:
             grad_face = grad_face + 1.e-20
-          else :
-            grad_face = grad_face - 1.e-20
-          if grad_face >= 0.0:
             del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
           else :
+            grad_face = grad_face - 1.e-20
             del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
+          #if grad_face >= 0.0:
+          #  del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
+          #else :
+          #  del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
           del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
           var_limiter[m,n_cell_self] = min(var_limiter[m,n_cell_self], del_face)
 
     elif kind_limiter == 'none' :
       var_limiter[:,:] = 1.0
 
-    #elapsed_time = time.time() - start_time
-    #print(elapsed_time)
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (gradient:slope limiter2)',elapsed_time)
 
     return var_limiter

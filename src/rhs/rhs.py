@@ -9,7 +9,7 @@ import numpy as np
 from orbital.orbital import orbital
 from rhs import advection
 from rhs import viscous
-
+import time as time
 
 class rhs(orbital):
 
@@ -45,13 +45,22 @@ class rhs(orbital):
   def rhs_routine(self, config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs):
 
     # Initialize variables
+    start_time = time.time()
     var_rhs = self.reinitialize_rhs(config, var_rhs)
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (rhs_routine:einitialize_rh)',elapsed_time)
+
 
     # Advection term
+    start_time = time.time()
     var_rhs = advection.flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs)
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (rhs_routine:flux_advection)',elapsed_time)
 
     # Viscous term
     var_rhs = viscous.flux_viscous(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_rhs)
+    elapsed_time = time.time() - start_time
+    print('Elapsed time (rhs_routine:flux_viscou)',elapsed_time)
 
     # 生成項を考慮するならここが良い
     # var_rhs = source.flux_source(config, var_rhs)
