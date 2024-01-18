@@ -4,6 +4,8 @@
 # Date: 2022/03/21
 
 import numpy as np
+import time as time
+from functools import wraps
 from general.general import general
 
 class orbital(general):
@@ -619,3 +621,20 @@ class orbital(general):
     #  sum_dq = sum_dq/self.sum_dq_init
 
     return sum_dq
+
+
+  def time_measurement_decorated(func):
+
+    @wraps(func)
+    def wrapper(*args, **kargs) :
+      flag_time_measurement = False
+      if flag_time_measurement :
+        start_time = time.time()
+        result = func(*args,**kargs)
+        elapsed_time = time.time() - start_time
+        print('Elapsed time of '+str(func.__name__)+str(':'),elapsed_time,'s')
+      else :
+        result = func(*args,**kargs)
+      return result 
+
+    return wrapper

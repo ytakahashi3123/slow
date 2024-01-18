@@ -8,6 +8,7 @@
 import numpy as np
 from orbital.orbital import orbital
 
+@orbital.time_measurement_decorated
 def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq):
 
   # Main routine

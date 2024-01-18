@@ -8,6 +8,7 @@
 import numpy as np
 from orbital.orbital import orbital
 
+@orbital.time_measurement_decorated
 def sweep_jacobian(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_conserv, var_diagonal, var_dq):
 
   # Jacobian matrix

@@ -11,7 +11,6 @@ from time_integration import lusgs_diagonal
 from time_integration import lusgs_sweep
 from time_integration import update
 from time_integration import explicit_euler
-import time as time
 
 
 class time_integration(orbital):
@@ -38,7 +37,7 @@ class time_integration(orbital):
     
     return var_diagonal, var_dq, var_dt, character_time
 
-
+  @orbital.time_measurement_decorated
   def reinitialize_time_integratioin(self, config, var_diagonal, var_dq):
 
     var_diagonal[:] = 0.0
@@ -58,40 +57,22 @@ class time_integration(orbital):
     # Implicit scheme by LUSGS
     
       # Initialize variables
-      start_time = time.time()
       var_diagonal, var_dq = self.reinitialize_time_integratioin(config, var_diagonal, var_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:reinitialize_time_integratioin)',elapsed_time)
 
       # Calculate diagonal
-      start_time = time.time()
       var_diagonal, var_dq = lusgs_diagonal.get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:get_diagonal)',elapsed_time)
 
       # Sweep
-      start_time = time.time()
       var_dq = lusgs_sweep.sweep_jacobian(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_conserv, var_diagonal, var_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:sweep_jacobia)',elapsed_time)
 
       # Update
-      start_time = time.time()
       var_conserv = update.update_solution(config, geom_dict, var_conserv, var_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:update_solution)',elapsed_time)
 
       # Display delta conservative variables
-      start_time = time.time()
       sum_dq = self.display_deltaq(config, iteration_inner, dimension_dict, var_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:display_deltaq)',elapsed_time)
 
       # Check convergence 
-      start_time = time.time()
       flag_converged_inner = self.check_convergence_inner(config, flag_converged_inner, sum_dq)
-      elapsed_time = time.time() - start_time
-      print('Elapsed time (time_integration_routine:check_convergence_inner)',elapsed_time)
 
     elif kind_time_scheme == 'explicit_euler' :
       var_conserv = explicit_euler.explicit_euler(config, geom_dict, metrics_dict, var_dt, var_rhs, var_conserv)
@@ -106,7 +87,7 @@ class time_integration(orbital):
 
     return var_conserv, var_primitiv, flag_converged_inner
 
-
+  @orbital.time_measurement_decorated
   def set_conservative_previous(self, config, var_conserv, var_conserv_prev):
     # Set privious conservative variables
 
@@ -115,7 +96,7 @@ class time_integration(orbital):
 
     return var_conserv_prev
 
-
+  @orbital.time_measurement_decorated
   def update_primitive(self, config, geom_dict, metrics_dict, gas_property_dict, var_conserv, var_primitiv):
     # Updating primitive variables from conservative variables:
     # --Densiry: m=rho
@@ -144,7 +125,7 @@ class time_integration(orbital):
 
     return var_primitiv
 
-
+  @orbital.time_measurement_decorated
   def set_timestep(self, config, geom_dict, character_time, var_dt):
     
     # set time step at each cell
@@ -190,7 +171,7 @@ class time_integration(orbital):
 
     return var_dt
 
-
+  @orbital.time_measurement_decorated
   def get_characteristic_time(self, config, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, character_time):
 
     # Local time steppingnにおけるTime stepを計算するために各セルでのcharacteristic_timeを取得する

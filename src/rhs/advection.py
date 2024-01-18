@@ -8,6 +8,7 @@
 import numpy as np
 from orbital.orbital import orbital
 
+@orbital.time_measurement_decorated
 def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs):
 
 

@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - `src/gradient/gradient.py:get_slopelimiter` Primitive variables iterationa are rewritten for efficient computation. 
+- `src/meshdata/meshdata.py:` オーバーラップセル判定の高速化
 
 ### Fixed
 - `src/boundary/boundary.py` Key error in config is fixed.
