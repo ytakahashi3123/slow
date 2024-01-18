@@ -52,8 +52,8 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
     absu  =  ( dens_l*abs(uvel_l) + dens_r*abs(uvel_r) )/( dens_l + dens_r )
     gfact = -max( min( mach_l, 0.0 ), -1.0 )*min( max( mach_r, 0.0 ), 1.0)
     chi   =  (1.0-mach_bar)**2
-    u_p   =  uvel_l + (1.0-gfact)*absu + gfact*np.abs(uvel_l)
-    u_m   =  uvel_r - (1.0-gfact)*absu - gfact*np.abs(uvel_r)
+    u_p   =  uvel_l + (1.0-gfact)*absu + gfact*abs(uvel_l)
+    u_m   =  uvel_r - (1.0-gfact)*absu - gfact*abs(uvel_r)
 
     # Mass flux
     ru_av = 0.50 * ( dens_l*u_p + dens_r*u_m - chi*(pres_r-pres_l)*sos_inv  )

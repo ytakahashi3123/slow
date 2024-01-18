@@ -5,6 +5,7 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2022/03/11
 
+
 import numpy as np
 from orbital.orbital import orbital
 
@@ -15,10 +16,10 @@ class boundary(orbital):
     print("Calling class: boundary")
 
     # not used
-    self.ID_BOUNDARY_FREESTREAM   = 1
-    self.ID_BOUNDARY_AXISYMMETRIC = 6
-    self.ID_BOUNDARY_OUTLET       = 10
-    self.ID_BOUNDARY_WALL_FIX     = 20
+    #self.ID_BOUNDARY_FREESTREAM   = 1
+    #self.ID_BOUNDARY_AXISYMMETRIC = 6
+    #self.ID_BOUNDARY_OUTLET       = 10
+    #self.ID_BOUNDARY_WALL_FIX     = 20
 
     # Boundary name-->orbital/orbital.py
     

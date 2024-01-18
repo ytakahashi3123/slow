@@ -48,8 +48,7 @@ class rhs(orbital):
     start_time = time.time()
     var_rhs = self.reinitialize_rhs(config, var_rhs)
     elapsed_time = time.time() - start_time
-    print('Elapsed time (rhs_routine:einitialize_rh)',elapsed_time)
-
+    print('Elapsed time (rhs_routine:einitialize_rhs)',elapsed_time)
 
     # Advection term
     start_time = time.time()
@@ -58,9 +57,10 @@ class rhs(orbital):
     print('Elapsed time (rhs_routine:flux_advection)',elapsed_time)
 
     # Viscous term
+    start_time = time.time()
     var_rhs = viscous.flux_viscous(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_rhs)
     elapsed_time = time.time() - start_time
-    print('Elapsed time (rhs_routine:flux_viscou)',elapsed_time)
+    print('Elapsed time (rhs_routine:flux_viscous)',elapsed_time)
 
     # 生成項を考慮するならここが良い
     # var_rhs = source.flux_source(config, var_rhs)
