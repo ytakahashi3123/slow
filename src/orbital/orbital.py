@@ -5,6 +5,7 @@
 
 import numpy as np
 import time as time
+import concurrent.futures
 from functools import wraps
 from general.general import general
 
@@ -622,12 +623,11 @@ class orbital(general):
 
     return sum_dq
 
-
+  # Decorator for time measurement
   def time_measurement_decorated(func):
-
     @wraps(func)
     def wrapper(*args, **kargs) :
-      flag_time_measurement = False
+      flag_time_measurement = True
       if flag_time_measurement :
         start_time = time.time()
         result = func(*args,**kargs)
@@ -636,5 +636,37 @@ class orbital(general):
       else :
         result = func(*args,**kargs)
       return result 
+    return wrapper
+  
+  # Decorator for parallel computation
+  #def parallel_execution_decorated(func):
+  #  @wraps(func)
+  #  def wrapper(*args, **kwargs):
+  #    # Create a ThreadPoolExecutor
+  #    with concurrent.futures.ThreadPoolExecutor() as executor:
+  #      # Submit the function to the executor
+  #      result = executor.submit(func, *args, **kwargs).result()
+  #    return result
+  #  return wrapper
 
+  #def parallel_execution_decorated(max_workers=None):
+  #  def decorator(func):
+  #    @wraps(func)
+  #    def wrapper(*args, **kwargs):
+  #      # Create a ThreadPoolExecutor with the specified number of workers
+  #      with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+  #        # Submit the function to the executor
+  #        result = executor.submit(func, *args, **kwargs).result()
+  #        return result
+  #    return wrapper
+  #  return decorator
+
+  def parallel_execution_decorated(func=None, max_workers=None):
+    if func is None:
+      return lambda f: parallel_execution_decorated(f, max_workers)
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+      with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        result = executor.submit(func, *args, **kwargs).result()
+      return result
     return wrapper

@@ -9,6 +9,7 @@ import numpy as np
 from orbital.orbital import orbital
 from rhs import advection
 from rhs import viscous
+import concurrent.futures
 
 class rhs(orbital):
 
@@ -41,16 +42,22 @@ class rhs(orbital):
     return var_rhs
 
 
+  @orbital.time_measurement_decorated
   def rhs_routine(self, config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs):
 
+    num_parallel=4
+
     # Initialize variables
-    var_rhs = self.reinitialize_rhs(config, var_rhs)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_parallel) as executor:
+      var_rhs = self.reinitialize_rhs(config, var_rhs)
 
     # Advection term
-    var_rhs = advection.flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_parallel) as executor:
+      var_rhs = advection.flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs)
 
     # Viscous term
-    var_rhs = viscous.flux_viscous(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_rhs)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_parallel) as executor:
+      var_rhs = viscous.flux_viscous(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_rhs)
 
     # 生成項を考慮するならここが良い
     # var_rhs = source.flux_source(config, var_rhs)

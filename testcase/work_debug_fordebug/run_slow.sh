@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LD=../src/slow.py
+LD=../../src/slow.py
 LOG=log_slow
 
 #$LD 2>&1 | tee $LOG

@@ -1,5 +1,5 @@
 # SLOW solver
-Supersonic flow code with low-learning cost
+Supersonic flow simulation code with low-learning cost
 
 
 # Code description
@@ -9,13 +9,13 @@ Supersonic flow code with low-learning cost
 
 # How to start calculation
 
-## Trajectory simulation
+## Simulation
 
 ```console
 python3 src/slow.py
 ```
 
-Tutorial case: `work*`
+Tutorial case: `testcase/`
 
 
 ## Configuration file
