@@ -24,7 +24,7 @@ Numerical simulation by `SLOW` is controled by the configuration file: `config.y
 
 ## Example
 
-![Temperature distribution around sphere at supersonic flow.\label{fig:temperature}](figure/sphere.1000.png){ width=50% }
+![Temperature distribution around sphere at supersonic flow.\label{fig:temperature}](figure/sphere.1000.png)
 
 ## Requirements
 
