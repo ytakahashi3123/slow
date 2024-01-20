@@ -163,6 +163,44 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
     return
 
 
+  def rhs_advection_inner(n_face):
+    # Face area vector
+    area   = area_vec[0,n_face]
+    vecx   = area_vec[1,n_face]
+    vecy   = area_vec[2,n_face]
+    vecz   = area_vec[3,n_face]
+    vect1x = area_vec[4,n_face]
+    vect1y = area_vec[5,n_face]
+    vect1z = area_vec[6,n_face]
+
+    dl_a   = length[0,n_face]
+    dl_b   = length[1,n_face]
+
+    # Calculate values on face, interpolated from left (self) and right sides (neigboring) cell
+    # --from self cell side
+    n_cell_a = face2cell[0,n_face]
+    var_a  = var_primitiv[:,n_cell_a] \
+          - eps_muscl*var_limiter[:,n_cell_a]*dl_a*( var_gradient[0,:,n_cell_a]*vecx + var_gradient[1,:,n_cell_a]*vecy + var_gradient[2,:,n_cell_a]*vecz)
+    # --from neigboring cell
+    n_cell_b = face2cell[1,n_face]
+    var_b  = var_primitiv[:,n_cell_b] \
+          + eps_muscl*var_limiter[:,n_cell_b]*dl_b*( var_gradient[0,:,n_cell_b]*vecx + var_gradient[1,:,n_cell_b]*vecy + var_gradient[2,:,n_cell_b]*vecz)
+
+    # Call advection scheme routine
+    if kind_scheme == 'slau2' :
+      slau2()
+    elif kind_scheme == 'haenel' :
+      haenel()
+    else :
+      slau2()
+
+    # Calculate fluxes
+    var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[:]*area
+    var_rhs[:,n_cell_b] = var_rhs[:,n_cell_b] + flux_rhs[:]*area
+
+    return
+
+
   # Main routine
   eps_muscl   = config['gradient_setting']['eps_muscl']
   kind_scheme = config['numericalflux_setting']['advection_scheme']
@@ -212,11 +250,11 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
     # --from self cell side
     n_cell_a = face2cell[0,n_face]
     var_a  = var_primitiv[:,n_cell_a] \
-           - eps_muscl*var_limiter[:,n_cell_a]*dl_a*( var_gradient[0,:,n_cell_a]*vecx + var_gradient[1,:,n_cell_a]*vecy + var_gradient[2,:,n_cell_a]*vecz)
+          - eps_muscl*var_limiter[:,n_cell_a]*dl_a*( var_gradient[0,:,n_cell_a]*vecx + var_gradient[1,:,n_cell_a]*vecy + var_gradient[2,:,n_cell_a]*vecz)
     # --from neigboring cell
     n_cell_b = face2cell[1,n_face]
     var_b  = var_primitiv[:,n_cell_b] \
-           + eps_muscl*var_limiter[:,n_cell_b]*dl_b*( var_gradient[0,:,n_cell_b]*vecx + var_gradient[1,:,n_cell_b]*vecy + var_gradient[2,:,n_cell_b]*vecz)
+          + eps_muscl*var_limiter[:,n_cell_b]*dl_b*( var_gradient[0,:,n_cell_b]*vecx + var_gradient[1,:,n_cell_b]*vecy + var_gradient[2,:,n_cell_b]*vecz)
 
     # Call advection scheme routine
     if kind_scheme == 'slau2' :
