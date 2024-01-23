@@ -1,4 +1,4 @@
-# SLOW solver
+# SLOW
 Supersonic flow simulation code with low-learning cost
 
 

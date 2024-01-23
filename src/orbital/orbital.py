@@ -627,7 +627,7 @@ class orbital(general):
   def time_measurement_decorated(func):
     @wraps(func)
     def wrapper(*args, **kargs) :
-      flag_time_measurement = True
+      flag_time_measurement = False
       if flag_time_measurement :
         start_time = time.time()
         result = func(*args,**kargs)

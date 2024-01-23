@@ -8,9 +8,10 @@
 import numpy as np
 from orbital.orbital import orbital
 from multiprocessing import Pool
+import concurrent.futures
 
 # Advection scheme: SLAU/SLAU2
-def slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs):
+def slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs):
 
   # Primitive variables on face from left (neigboring) cell
   dens_l = var_b[0]
@@ -185,21 +186,21 @@ def rhs_advection_inner(args):
 
   # Call advection scheme routine
   if kind_scheme == 'slau2' :
-    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs)
+    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
   elif kind_scheme == 'haenel' :
     flux_rhs = haenel(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
   else :
-    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs)
+    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
 
   # Calculate fluxes
-  var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[:]*area
-  var_rhs[:,n_cell_b] = var_rhs[:,n_cell_b] + flux_rhs[:]*area
+  #var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[:]*area
+  #var_rhs[:,n_cell_b] = var_rhs[:,n_cell_b] + flux_rhs[:]*area
 
-  return var_rhs
+  return flux_rhs
 
 
 def rhs_advection_bound(args):
-  n_face, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs, area_vec_bd, length, face2cell_bd, virtualcell_bd, kind_scheme, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs = args
+  n_face, var_primitiv, var_primitiv_bd, var_rhs, area_vec_bd, face2cell_bd, virtualcell_bd, kind_scheme, specfic_heat_ratio, specific_heat_volum, flux_rhs = args
   # Face area vector
   area   = area_vec_bd[0,n_face]
   vecx   = area_vec_bd[1,n_face]
@@ -219,15 +220,17 @@ def rhs_advection_bound(args):
 
   # Call advection scheme routine
   if kind_scheme == 'slau2' :
-    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs)
+    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
   elif kind_scheme == 'haenel' :
     flux_rhs = haenel(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
   else :
-    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs)
+    flux_rhs = slau2(var_a, var_b, vecx, vecy, vecz, vect1x, vect1y, vect1z, specfic_heat_ratio, specific_heat_volum, flux_rhs)
 
   # Calculate fluxes
-  var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[:]*area
-  return
+  #var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[:]*area
+
+  return flux_rhs
+
 
 @orbital.time_measurement_decorated
 #@orbital.parallel_execution_decorated(max_workers=4)
@@ -260,17 +263,40 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
   # Initialize
   #flux_rhs = np.zeros(num_conserv).reshape(num_conserv)
   flux_rhs = np.linspace(0, 0, num_conserv, dtype=float)
-
 #
-  num_parallel = 8
+  #num_parallel = 8
   args_list = [(n_face, var_primitiv, var_gradient, var_limiter, var_rhs, area_vec, length, face2cell, kind_scheme, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs) for n_face in range(num_face)]
+  #with Pool(processes=num_parallel) as pool:
+  #  results = pool.map(rhs_advection_inner, args_list)
+  #flux_rhs = np.array(results)
+  num_processes=4
+  with concurrent.futures.ThreadPoolExecutor(max_workers=num_processes) as executor:
+    results = list(executor.map(rhs_advection_inner, args_list))
+  flux_rhs = np.array(results)
 
-  with Pool(processes=num_parallel) as pool:
-    var_rhs = pool.map(rhs_advection_inner, args_list)
+  for n_face in range(0,num_face):
+    area   = area_vec[0,n_face]
+    n_cell_a = face2cell[0,n_face]
+    n_cell_b = face2cell[1,n_face]
+    var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[n_face,:]*area
+    var_rhs[:,n_cell_b] = var_rhs[:,n_cell_b] + flux_rhs[n_face,:]*area
 
-  args_list = [(n_face, var_primitiv, var_primitiv_bd, var_gradient, var_limiter, var_rhs, area_vec_bd, length, face2cell_bd, virtualcell_bd, kind_scheme, eps_muscl, specfic_heat_ratio, specific_heat_volum, flux_rhs) for n_face in range(num_face_bd)]
-  with Pool(processes=num_parallel) as pool:
-    var_rhs = pool.map(rhs_advection_bound, args_list)
+  flux_rhs = np.linspace(0, 0, num_conserv, dtype=float)
+  #
+  #num_parallel = 8
+  args_list = [(n_face, var_primitiv, var_primitiv_bd, var_rhs, area_vec_bd, face2cell_bd, virtualcell_bd, kind_scheme, specfic_heat_ratio, specific_heat_volum, flux_rhs) for n_face in range(num_face_bd)]
+  #with Pool(processes=num_parallel) as pool:
+  #  results = pool.map(rhs_advection_bound, args_list)
+  #flux_rhs = np.array(results)
+  num_processes=4
+  with concurrent.futures.ThreadPoolExecutor(max_workers=num_processes) as executor:
+    results = list(executor.map(rhs_advection_bound, args_list))
+  flux_rhs = np.array(results)
+
+  for n_face in range(0,num_face_bd):
+    area     = area_vec_bd[0,n_face]
+    n_cell_a = face2cell_bd[0,n_face]
+    var_rhs[:,n_cell_a] = var_rhs[:,n_cell_a] - flux_rhs[n_face,:]*area
 
   # Flux calculation
   # --Inner loop
