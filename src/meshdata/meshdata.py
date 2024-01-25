@@ -439,14 +439,16 @@ class meshdata(orbital):
         exit()
       
       # Version check
-      version_current = python_version()
-      version_3_7_0 = "3.7.0" # 3.7未満ではdict型にインデクスがつかない（OrderedDict()ならつく？）
-      comp_version = self.compare_versions(version_current, version_3_7_0)
+      #version_current = python_version()
+      #version_3_7_0 = "3.7.0" # 3.7未満ではdict型にインデクスがつかない（OrderedDict()ならつく？）
+      #comp_version = self.compare_versions(version_current, version_3_7_0)
 
-      if comp_version >= 0:
-        # Dict()を使うことで検索の計算量をO(n)にしている。ただDictにインデクスがないとできないため、Python3.7以降が必要（なはず）
+      # Dict型を使った高速検索を使うとき
+      flag_search_dict = True
 
-        # 重複したフェイスの同定-->さかのぼって地道に調べる(Dict型で高速化する、たぶん要素の挿入順が保持される必要があるので>=Python3.7?)
+      if flag_search_dict:
+        # Dict()を使うことで検索の計算量をO(n)にしている。
+        # 重複したフェイスの同定-->Dict型で高速化する。
         print('Finding overlapping nodes (inner)...')
         flag_face_overlapped     = [False]*num_face_overlap
         flag_face_overlapped_opp = [False]*num_face_overlap
@@ -466,7 +468,6 @@ class meshdata(orbital):
             flag_face_overlapped_opp[extracted_value] = True
             face_opposite_overlapped[n] = extracted_value
       
-
         # Boundary faceと隣接セルの同定
         # 0-->隣接セル、1-->Boundary ID
         print('Finding overlapping nodes (boundary)...')
@@ -490,11 +491,12 @@ class meshdata(orbital):
               face2node_boundary[0, m] = node_n1
               face2node_boundary[1, m] = node_n0
 
-      else :
-        # こちらの処理の計算量はO(n^2)に注意。nは格子数
+
+      elif not flag_search_dict :
+        # １つ１つ調べ上げる。こちらの処理の計算量は最大でO(n^2)に注意。nは格子数
         print("Python version is lower than 3.7. The computational cost becomes high.")
 
-        # 重複したフェイスの同定-->さかのぼって地道に調べる(Dict型で高速化する、たぶん要素の挿入順が保持される必要があるので>=Python3.7?)
+        # 重複したフェイスの同定-->さかのぼって地道に調べる
         print('Finding overlapping nodes (inner)...')
         flag_face_overlapped     = [False]*num_face_overlap
         flag_face_overlapped_opp = [False]*num_face_overlap
@@ -557,6 +559,11 @@ class meshdata(orbital):
                   face2node_boundary[1,m] = node_n0
                 break
           #print('Cell',face2cell_boundary[0,m]+1,'-boundary attribute:',face2cell_boundary[1,m], '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
+
+      else :
+        print("Please check meshdata.py")
+        print("Program stopped.")
+        exit()
 
 
       # 重複したフェイスの削除
