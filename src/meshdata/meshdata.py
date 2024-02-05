@@ -6,11 +6,11 @@
 # Date; 2022/04/30
 
 #
-# "gmsh" package is requred
+# "gmsh" package is required
 #
 
 import numpy as np
-from platform import python_version
+#from platform import python_version
 from orbital.orbital import orbital
 
 class meshdata(orbital):
@@ -825,3 +825,7 @@ class meshdata(orbital):
                      'coord_cellcenter': coord_cellcenter }
 
     return metrics_dict
+
+
+  def domain_partition(self, config):
+    return
