@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 
 # SLOW: Supersonic flow code with low-learning cost
-# Version 0.05
+# Version 0.0.5
 
 # Author: Yusuke Takahashi, Hokkaido University
 # Date: 2024/01/31
