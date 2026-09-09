@@ -31,6 +31,15 @@ All notable changes to this project will be documented in this file.
 - `src/slow/general/thermodynamics.py` カーネルから呼べる熱力学関係（音速・全エンタルピー・
   最大固有値）。`orbital` の同名メソッドおよび `time_integration/eigenvalue.py` と
   ビット一致することを `tests/test_thermodynamics.py` で固定している（各 20,000 サンプル）
+- `src/slow/time_integration/lusgs_sweep_kernel.py` LU-SGS の前進・後退スイープ
+  （スカラー散逸）の面ループを素の関数として切り出した。`flux_jacobian.set_flux_jacobian` も
+  カーネルから呼べるようにした（コンパイル版と素の Python 版がビット一致することを確認済み）
+  - 実測: `sweep_jacobian` が **356 ms --> 0.70 ms（508 倍）**
+  - 5x5 の行列ベクトル積を `np.dot` から明示的な和に置き換えたため、結果が 8e-16 だけ変わる
+    （`np.dot` は 5 要素でも BLAS を使い、どの明示的な和とも一致しない）。
+    スイープは残差に影響しないので、収束の振る舞いで検証した:
+    デバッグ格子の定常は **205 反復で同一**（収束解の差 1.2e-15、最終残差は 7 桁一致）、
+    非定常 BDF2 は **内部反復の総数 40 で同一**（`Delta Q` の差 1.4e-15）
 - `src/slow/gradient/gradient_kernel.py` Green-Gauss 勾配の面ループを、配列とスカラーだけを
   引数に取る素の関数として切り出した。ループの形は元のままで、原始変数についての内側ループを
   明示的に書いてある（6 要素の numpy スライスはスカラー演算より遅く、numba も掛けられない）

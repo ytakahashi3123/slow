@@ -6,6 +6,10 @@
 # Date; 2022/03/31
 
 
+from slow.general.jit import kernel
+
+
+@kernel
 def set_flux_jacobian(jacobian, specfic_heat_ratio, eigenvalue, cvel, uvel, vvel, wvel, enth, vecx, vecy, vecz):
   """
   Set the split convective flux Jacobian A(n) - lambda*I used in the LU-SGS sweep.

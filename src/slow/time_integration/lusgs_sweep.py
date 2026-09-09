@@ -7,9 +7,9 @@
 
 import numpy as np
 from slow.orbital.orbital import orbital
-from slow.time_integration import eigenvalue as eigenvalue_mod
 from slow.time_integration import flux_jacobian
 from slow.time_integration import lusgs
+from slow.time_integration import lusgs_sweep_kernel
 from slow.time_integration import roe_dissipation
 
 @orbital.time_measurement_decorated
@@ -23,154 +23,24 @@ def sweep_jacobian(config, dimension_dict, geom_dict, metrics_dict, gas_property
                                  transport_coefficient_dict, var_primitiv, var_conserv, \
                                  var_diagonal, var_dq)
 
-  # Input parameters
-  num_conserv  = dimension_dict['num_conservative']
+  # Input parameters。面ループの本体は lusgs_sweep_kernel に置いてある
+  # （numba を掛けるため、配列とスカラーだけを引数に取る素の関数にしてある）
+  num_conserv = dimension_dict['num_conservative']
 
   num_face    = geom_dict['num_face_inner']
-  num_face_bd = geom_dict['num_face_boundary']
-  num_cell    = geom_dict['num_cell']
   face2cell   = geom_dict['face2cell_inner']
 
   area_vec    = metrics_dict['area_vec_inner']
-  area_vec_bd = metrics_dict['area_vec_boundary']
   length      = metrics_dict['length_inner']
-  length_bd   = metrics_dict['length_boundary']
-  volume      = metrics_dict['volume_cell']
 
   specfic_heat_ratio  = gas_property_dict['specfic_heat_ratio']
   specific_heat_volum = gas_property_dict['specific_heat_volume']
 
   viscosity           = transport_coefficient_dict['viscosity']
 
-
-  # Initialize
-  jacobian      = np.zeros(num_conserv*num_conserv).reshape(num_conserv,num_conserv)
-  #kroneko_delta = np.identity(num_conserv, dtype=float) 
-  eigenvalue = 0.0
-
-  # Forward sweep
-  for n_face in range(0,num_face):
-
-    # Face area vector
-    area = area_vec[0,n_face]
-    vecx = area_vec[1,n_face]
-    vecy = area_vec[2,n_face]
-    vecz = area_vec[3,n_face]
-    # Length
-    leng_a = length[0,n_face]
-    leng_b = length[1,n_face]
-
-
-    # Cell ID
-    # --from self cell side
-    n_cell_a = face2cell[0,n_face]
-    # --from neigboring cell
-    n_cell_b = face2cell[1,n_face]
-
-    # Primitive variables
-    # --非対角項 A^- が掛かるのは隣接セルの dq なので、ヤコビアンは隣接セル側の状態で評価する
-    prim = var_primitiv[:,n_cell_a]
-    dens   = prim[0]
-    uvel   = prim[1]
-    vvel   = prim[2]
-    wvel   = prim[3]
-    temp   = prim[4]
-    pres   = prim[5]
-
-    # Contravariant velocity
-    cvel = uvel*vecx + vvel*vecy + wvel*vecz
-
-    # Thermodynamic properties: Enthalpy
-    enth  = orbital.get_enthalpy("self", specific_heat_volum, dens, temp, [uvel,vvel,wvel], pres)
-
-
-    # Maximum eigenvalue of Jacobian matrix
-    # --対角項 (lusgs_diagonal) と同一の値でなければ D+L+U が整合した分解にならないので、
-    #   面の左右セルで評価して大きい方を採る
-    lenght_tmp = leng_a + leng_b
-    prim_a_tmp = var_primitiv[:,n_cell_a]
-    prim_b_tmp = var_primitiv[:,n_cell_b]
-    eigenvalue = max( eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_a_tmp[0], prim_a_tmp[1], prim_a_tmp[2], prim_a_tmp[3], prim_a_tmp[5], \
-                                                        viscosity[n_cell_a], lenght_tmp, vecx, vecy, vecz), \
-                      eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_b_tmp[0], prim_b_tmp[1], prim_b_tmp[2], prim_b_tmp[3], prim_b_tmp[5], \
-                                                        viscosity[n_cell_b], lenght_tmp, vecx, vecy, vecz) )
-
-
-    # Jacobian matrix
-    flux_jacobian.set_flux_jacobian(jacobian, specfic_heat_ratio, eigenvalue, \
-                                    cvel, uvel, vvel, wvel, enth, vecx, vecy, vecz)
-
-
-    # Sweep
-    var_inv = 0.50*area/var_diagonal[n_cell_b]
-    for m in range(0,num_conserv):
-      dq_tmp = np.dot( jacobian[m,:],var_dq[:,n_cell_a])
-      var_dq[m,n_cell_b] = var_dq[m,n_cell_b] - dq_tmp*var_inv
-
-
-  # Backward sweep
-  for n_face_b in range(0,num_face):
-    n_face = num_face-n_face_b-1
-
-    # Face area vector
-    area = area_vec[0,n_face]
-    vecx =-area_vec[1,n_face]
-    vecy =-area_vec[2,n_face]
-    vecz =-area_vec[3,n_face]
-    # Length
-    leng_a = length[0,n_face]
-    leng_b = length[1,n_face]
-
-
-    # Cell ID
-    # --from self cell side
-    n_cell_a = face2cell[0,n_face]
-    # --from neigboring cell
-    n_cell_b = face2cell[1,n_face]
-
-    # Primitive variables
-    # --非対角項 A^- が掛かるのは隣接セルの dq なので、ヤコビアンは隣接セル側の状態で評価する
-    prim = var_primitiv[:,n_cell_b]
-    dens   = prim[0]
-    uvel   = prim[1]
-    vvel   = prim[2]
-    wvel   = prim[3]
-    temp   = prim[4]
-    pres   = prim[5]
-
-    # Contravariant velocity
-    cvel = uvel*vecx + vvel*vecy + wvel*vecz
-
-    # Thermodynamic properties: Enthalpy
-    enth  = orbital.get_enthalpy("self", specific_heat_volum, dens, temp, [uvel,vvel,wvel], pres)
-
-
-    # Maximum eigenvalue of Jacobian matrix
-    # --対角項 (lusgs_diagonal) と同一の値でなければ D+L+U が整合した分解にならないので、
-    #   面の左右セルで評価して大きい方を採る
-    lenght_tmp = leng_a + leng_b
-    prim_a_tmp = var_primitiv[:,n_cell_a]
-    prim_b_tmp = var_primitiv[:,n_cell_b]
-    eigenvalue = max( eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_a_tmp[0], prim_a_tmp[1], prim_a_tmp[2], prim_a_tmp[3], prim_a_tmp[5], \
-                                                        viscosity[n_cell_a], lenght_tmp, vecx, vecy, vecz), \
-                      eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_b_tmp[0], prim_b_tmp[1], prim_b_tmp[2], prim_b_tmp[3], prim_b_tmp[5], \
-                                                        viscosity[n_cell_b], lenght_tmp, vecx, vecy, vecz) )
-
-
-    # Jacobian matrix
-    flux_jacobian.set_flux_jacobian(jacobian, specfic_heat_ratio, eigenvalue, \
-                                    cvel, uvel, vvel, wvel, enth, vecx, vecy, vecz)
-
-
-    # Sweep
-    var_inv = 0.50*area/var_diagonal[n_cell_a]
-    for m in range(0,num_conserv):
-      dq_tmp = np.dot( jacobian[m,:],var_dq[:,n_cell_b])
-      var_dq[m,n_cell_a] = var_dq[m,n_cell_a] - dq_tmp*var_inv
+  var_dq = lusgs_sweep_kernel.sweep_scalar(num_face, num_conserv, face2cell, area_vec, length,
+                                           specfic_heat_ratio, specific_heat_volum,
+                                           var_primitiv, viscosity, var_diagonal, var_dq)
 
   return var_dq
 
