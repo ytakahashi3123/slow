@@ -135,11 +135,18 @@ class time_integration(orbital):
                      num_cell, gas_constant, specific_heat_volum, var_conserv, var_primitiv)
 
     # Check variables
-    for n_cell in range(0,num_cell):
-      if var_primitiv[0,n_cell] < 0.0 or var_primitiv[4,n_cell] < 0.0 or var_primitiv[5,n_cell] < 0.0 :
-        logger.info('%s %s %s %s %s %s', n_cell, coord_cellcenter[0,n_cell], coord_cellcenter[1,n_cell], var_primitiv[0,n_cell], var_primitiv[4,n_cell], var_primitiv[5,n_cell])
-        exit()
-    #flag_fail = any((x < 0 for x in var_primitiv[4,:]))
+    # 密度・温度・圧力のいずれかが負になったら、最初のセルを示して止める
+    flag_negative = ( var_primitiv[0,:] < 0.0 ) | ( var_primitiv[4,:] < 0.0 ) \
+                  | ( var_primitiv[5,:] < 0.0 )
+    if np.any( flag_negative ) :
+      n_cell = int( np.argmax(flag_negative) )
+      logger.error('Error: negative density, temperature or pressure (cell %s)', n_cell)
+      logger.error('--coordinate: %s %s', coord_cellcenter[0,n_cell], coord_cellcenter[1,n_cell])
+      logger.error('--density: %s, temperature: %s, pressure: %s',
+                   var_primitiv[0,n_cell], var_primitiv[4,n_cell], var_primitiv[5,n_cell])
+      logger.error('Program stopped')
+      # 呼び出し側のスクリプトから失敗を検知できるよう 0 以外で終了する
+      sys.exit(1)
 
     return var_primitiv
 
@@ -157,18 +164,13 @@ class time_integration(orbital):
 
     if kind_time_determine == 'cfl' :
       # Time step is determined by Courant number
+      # 1.e-20 は特性時間が 0 のときの 0 除算を避けるため
       if kind_time_stepping == 'local' :
         # Local time stepping
-        for n_cell in range(0,num_cell):
-          var_dt[n_cell] = courant_number*( character_time[n_cell] + 1.e-20)
+        var_dt[:] = courant_number*( character_time + 1.e-20 )
       elif kind_time_stepping == 'global' :
         # Global time stepping
-        dt_global_tmp = 1.e+20
-        for n_cell in range(0,num_cell):
-          dt_local_tmp  = courant_number*( character_time[n_cell] + 1.e-20)
-          dt_global_tmp = min(dt_global_tmp, dt_local_tmp)
-        for n_cell in range(0,num_cell):
-          var_dt[n_cell] = dt_global_tmp
+        var_dt[:] = np.min( courant_number*( character_time + 1.e-20 ) )
       else:
         logger.info('Error in kind_time_stepping of control file:  %s', kind_time_stepping)
         logger.info('Program stopped')
@@ -176,8 +178,7 @@ class time_integration(orbital):
 
     elif kind_time_determine == 'dt' :
       # Time step is determined by time step given
-        for n_cell in range(0,num_cell):
-          var_dt[n_cell] = timestep_constant
+      var_dt[:] = timestep_constant
 
     else :
       logger.info('Error in kind_time_fix of control file:  %s', kind_time_determine)

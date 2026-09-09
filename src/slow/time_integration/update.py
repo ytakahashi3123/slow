@@ -7,12 +7,9 @@
 def update_solution(config, geom_dict, var_conserv, var_dq):
 
   # Main routine
-  
-  # Input parameters
-  num_cell = geom_dict['num_cell']
 
   # Update conservative variables
-  for n_cell in range(0,num_cell):
-     var_conserv[:,n_cell] = var_conserv[:,n_cell] + var_dq[:,n_cell]
+  # 全セル・全成分について同じ足し算なので、セルループにする理由が無い
+  var_conserv += var_dq
 
   return var_conserv

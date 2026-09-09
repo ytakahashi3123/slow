@@ -42,7 +42,7 @@ All notable changes to this project will be documented in this file.
 - `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループと
   セルごとの時間項（スカラー散逸）
   - 実測: `get_diagonal` が **77 ms --> 0.17 ms（453 倍）**。**ビット一致**
-- **内側反復の合計が 1,254 ms --> 19.0 ms（66 倍）**（ノズル格子 7,325 セル）
+- **内側反復の合計が 1,254 ms --> 4.9 ms（256 倍）**（ノズル格子 7,325 セル）
 - `src/slow/rhs/advection_kernel.py` 移流流束（SLAU2 / Haenel）と面ループを切り出した。
   もとは入れ子関数がクロージャで変数をやりとりしていたのを、引数と戻り値を明示した
   独立した関数にした（`get_flux_slau2` / `get_flux_haenel` / `accumulate_advection`）。
@@ -123,6 +123,20 @@ All notable changes to this project will be documented in this file.
     （いずれも流れ場が発達するほど効果が大きい）。差し引きで有利
 
 ### Changed
+- セルごとに同じ式を当てるだけのループを、素の numpy の配列演算に書き換えた。
+  面ループと違ってカーネルにする必要が無く、1 行で書けて読みやすい
+  - `time_integration/update.py` --> `var_conserv += var_dq`（6.8 ms --> ~0）
+  - `time_integration/explicit_euler.py` --> `var_conserv -= var_rhs*var_dt/volume`
+  - `flowfield.set_transport_coefficients` Sutherland 則（4.2 ms --> ~0）
+  - `time_integration.set_timestep`（1.3 ms --> ~0。global は `np.min`）
+  - `update_primitive` の負値検査（2.0 ms --> ~0）。`np.any` で判定し、
+    `np.argmax` で最初のセルを示す。メッセージも何が負なのか分かる形にし、
+    終了コードを `sys.exit(1)` にした（従来の `exit()` は 0 で成功に見えていた）
+  - Sutherland 則だけは結果が最大 5.5e-16（4.4% のセル）変わる。numpy の配列に対する
+    `**1.5` が SIMD の `pow` を使い、スカラーの `pow` と 1 ULP 違うため。
+    デバッグ格子での実際の影響は 1e-18--1e-20 で、定常を収束まで流しても
+    **反復数は同一（205 回）**、収束解の差は 1.5e-18。
+    他の 4 箇所はビット一致（`explicit_euler` と global 時間刻みは差が厳密に 0）
 - `src/slow/time_integration/lusgs.py` 時間項の設定を 1 回だけ解決する
   `get_time_setting` を切り出した。従来は `get_time_term` がセルごとに config の辞書を
   4 回引いており、7,325 セルでは対角の計算時間の大半を占めていた。

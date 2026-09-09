@@ -229,13 +229,14 @@ class flowfield(orbital):
     viscosity_bd        = transport_coefficient_dict['viscosity_boundary']
     thermal_cond_bd     = transport_coefficient_dict['thermal_conductivity_boundary']
 
-    for i in range(0,num_cell):
-      viscosity[i]    = visc_mu_sutherland*(temperature[i]/visc_t_sutherland)**(1.50)*( ( visc_t_sutherland + visc_c_sutherland)/(temperature[i] + visc_c_sutherland) )
-      thermal_cond[i] = viscosity[i]*specific_heat_press/prandlt_number
+    # 全セル・全境界面について同じ式なので配列演算で書く（セルループにする理由が無い）
+    viscosity[:]    = visc_mu_sutherland*(temperature/visc_t_sutherland)**(1.50) \
+                     *( ( visc_t_sutherland + visc_c_sutherland)/(temperature + visc_c_sutherland) )
+    thermal_cond[:] = viscosity*specific_heat_press/prandlt_number
 
-    for i in range(0,num_face_bd):
-      viscosity_bd[i]    = visc_mu_sutherland*(temperature_bd[i]/visc_t_sutherland)**(1.50)*( ( visc_t_sutherland + visc_c_sutherland)/(temperature_bd[i] + visc_c_sutherland) )
-      thermal_cond_bd[i] = viscosity_bd[i]*specific_heat_press/prandlt_number
+    viscosity_bd[:]    = visc_mu_sutherland*(temperature_bd/visc_t_sutherland)**(1.50) \
+                        *( ( visc_t_sutherland + visc_c_sutherland)/(temperature_bd + visc_c_sutherland) )
+    thermal_cond_bd[:] = viscosity_bd*specific_heat_press/prandlt_number
 
     #transport_coefficient_list = [viscosity, thermal_cond]
     #transport_coefficient_list_bd = [viscosity_bd, thermal_cond_bd]

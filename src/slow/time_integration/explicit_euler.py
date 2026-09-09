@@ -7,13 +7,12 @@
 def explicit_euler(config, geom_dict, metrics_dict, var_dt, var_rhs, var_conserv):
 
   # Main routine
-  
+
   # Input parameters
-  num_cell = geom_dict['num_cell']
   volume   = metrics_dict['volume_cell']
 
   # Update conservative variables
-  for n_cell in range(0,num_cell):
-    var_conserv[:,n_cell] = var_conserv[:,n_cell] - var_rhs[:,n_cell]*var_dt[n_cell]/volume[n_cell]
+  # var_rhs は V*dQ/dt の符号を反転した量なので、引いて進める
+  var_conserv -= var_rhs*var_dt/volume
 
   return var_conserv
