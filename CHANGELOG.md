@@ -27,7 +27,9 @@ All notable changes to this project will be documented in this file.
   故意にバグを入れてテストの検出力を確かめる、時間精度の次数測定、前後のビット比較、
   幾何・離散化の恒等式、異常系の挙動確認）と、それぞれで実際に見つかった不具合、
   および踏んだ落とし穴を記録している。検証していない範囲も明記した。
-  `README.md` から参照する
+  `README.md` から参照する。開発者向けメモには「変更した箇所に応じてどの方法を使うか」の
+  対応表と、実務上の要点（複素ステップ微分、密行列との突き合わせ、変異テストの落とし穴、
+  次数の推移の見方、ビット比較の注意）を独立した節として置いた
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `src/slow/general/history.py` 残差の履歴を CSV で出力するようにした（`output_result/history.csv`）
   - 列は `iteration, iteration_inner, residual_{rho,momx,momy,momz,energy},
