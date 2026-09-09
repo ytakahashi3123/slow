@@ -87,7 +87,7 @@ class time_integration(orbital):
       var_conserv = explicit_euler.explicit_euler(config, geom_dict, metrics_dict, var_dt, var_rhs, var_conserv)
 
     else:
-      print('Error in kind_time_shceme of control file.', kind_time_shceme)
+      print('Error in kind_time_scheme of control file.', kind_time_scheme)
       print('Program stopped')
       exit()
 

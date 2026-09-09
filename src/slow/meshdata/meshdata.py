@@ -568,10 +568,10 @@ class meshdata(orbital):
 
       # 重複したフェイスの削除
       # --重複していないフェイスの数(Inner face+Boundary face)
-      num_face_merge = sum( flag_tmp==False for flag_tmp in flag_face_overlapped) 
+      num_face_merge = sum( not flag_tmp for flag_tmp in flag_face_overlapped )
       print('Number of faces including inner and boundary faces: ', num_face_merge)
       # -重複していたフェイスの数=Inner faceの数
-      num_face_inner = sum( flag_tmp==True for flag_tmp in flag_face_overlapped) 
+      num_face_inner = sum( flag_tmp for flag_tmp in flag_face_overlapped )
       print('Number of inner faces (=number of faces that already overlapped: ', num_face_inner)
       # -重複していないフェイスの数から重複していたフェイスの数を差し引くと、Boundary faceの数となる
       num_face_boundary = num_face_merge - num_face_inner
@@ -580,7 +580,6 @@ class meshdata(orbital):
       face2node_inner = np.zeros(2*num_face_inner).reshape(2,num_face_inner).astype(int)
       face2cell_inner = np.zeros(2*num_face_inner).reshape(2,num_face_inner).astype(int)
       n_count_face_tmp = 0
-      index_inner_face =[]
       for n in range(0,num_face_overlap) :
         if flag_face_overlapped[n] :
           # Inner cell

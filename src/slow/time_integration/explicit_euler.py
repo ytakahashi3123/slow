@@ -4,9 +4,6 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2022/03/31
 
-import numpy as np
-from slow.orbital.orbital import orbital
-
 def explicit_euler(config, geom_dict, metrics_dict, var_dt, var_rhs, var_conserv):
 
   # Main routine

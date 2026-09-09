@@ -5,7 +5,6 @@
 
 import numpy as np
 import time as time
-import concurrent.futures
 from functools import wraps
 from slow.general.general import general
 
@@ -484,8 +483,8 @@ class orbital(general):
       vtk_celldata_scalars_name     = 'Scalars'   + blank_code 
       vtk_celldata_scalars_datatype = 'float'
       vtk_celldata_scalars_lookup   = 'Lookup_table default'
-    except :
-      flag_scalar_output = False   
+    except KeyError :
+      flag_scalar_output = False
 
     # --vectors
     try:
@@ -496,7 +495,7 @@ class orbital(general):
       flowfield_vector_name_tmp = list( kwargs['vector_dict'].keys() )
       vtk_celldata_vectors_name = 'Vectors' + blank_code 
       vtk_celldata_vectors_datatype = 'float'
-    except :
+    except KeyError :
       flag_vector_output = False
 
 
@@ -533,7 +532,7 @@ class orbital(general):
     file.write( vtk_celltype_header + vtk_celltype_number + newline_code )
     for i in range(0,num_type_elem):
       if flag_cell[i] :
-        for n in range(0,num_elembytype[i]):
+        for _n in range(0,num_elembytype[i]):
           txt_tmp = str( vtk_id_cell_type[ kind_nodebytype[i] ] ) + newline_code
           file.write( txt_tmp )
 
@@ -641,37 +640,4 @@ class orbital(general):
       else :
         result = func(*args,**kargs)
       return result 
-    return wrapper
-  
-  # Decorator for parallel computation
-  #def parallel_execution_decorated(func):
-  #  @wraps(func)
-  #  def wrapper(*args, **kwargs):
-  #    # Create a ThreadPoolExecutor
-  #    with concurrent.futures.ThreadPoolExecutor() as executor:
-  #      # Submit the function to the executor
-  #      result = executor.submit(func, *args, **kwargs).result()
-  #    return result
-  #  return wrapper
-
-  #def parallel_execution_decorated(max_workers=None):
-  #  def decorator(func):
-  #    @wraps(func)
-  #    def wrapper(*args, **kwargs):
-  #      # Create a ThreadPoolExecutor with the specified number of workers
-  #      with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-  #        # Submit the function to the executor
-  #        result = executor.submit(func, *args, **kwargs).result()
-  #        return result
-  #    return wrapper
-  #  return decorator
-
-  def parallel_execution_decorated(func=None, max_workers=None):
-    if func is None:
-      return lambda f: parallel_execution_decorated(f, max_workers)
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-      with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        result = executor.submit(func, *args, **kwargs).result()
-      return result
     return wrapper

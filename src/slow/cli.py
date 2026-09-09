@@ -7,7 +7,6 @@
 # Date: 2024/01/31
 
 
-import numpy as np
 from slow import __version__
 from slow.orbital.orbital import orbital as orbital_class
 from slow.meshdata.meshdata import meshdata as meshdata_class
@@ -47,18 +46,7 @@ def main():
   orbital.set_orbital_parameters(dimension_dict)
 
 
-  # Set geometry variables
-  # --Boundary data
-  #bd_list = geometry.read_boundary_data(config)
-  # --Geometry data
-  #grid_list, coord_node_list = geometry.read_geometry_data(config)
-  # --Set boundary attribution and index
-  #grid_list = geometry.set_boundary_attribute(config, bd_list, grid_list)
-  # --Set face and cell variables
-  #geom_list = geometry.set_geometry_face(config, grid_list, coord_node_list)
-  # --Metrics
-  #metrics_list = geometry.set_metrics(config, coord_node_list, geom_list)
-  #
+  # Set mesh, face/cell connectivity and metrics
   meshnode_dict, meshelem_dict, geom_dict, metrics_dict = meshdata.set_mesh_routine(config)
   cellcenter = metrics_dict['coord_cellcenter']
 

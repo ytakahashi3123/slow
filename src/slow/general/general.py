@@ -3,7 +3,6 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date: 2022/03/31
 
-import numpy as np
 
 
 class general:

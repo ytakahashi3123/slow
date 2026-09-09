@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file.
     相対／絶対の判定が両者で同じ向きであることも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
+- `ruff` を linter として導入した（`pyproject.toml` の `[tool.ruff]`、`requirements-dev.txt`）。
+  実バグや取り違えを拾う規則だけを選び (`E4,E7,E9,F,B,PLE`)、体裁を整えるだけの規則は入れていない。
+  `ruff format` は既存コードには掛けない: このコードベースは代入の桁揃えと行継続を手で整えており、
+  それが読みやすさの一部なので、一括再整形すると読めない差分になる。
+  `F841`（未使用ローカル変数）は、関数先頭で dict から一括展開する定型と、
+  3 次元化のために残しているプレースホルダ（`wvel`, `vecz`, `flux_tmp4` など）を消させないため除外している
+  - 実行: `.venv/bin/ruff check src/ tests/`
 - `requirements.txt`, `requirements-dev.txt` 実行時／開発時の依存関係
 - LU-SGS の陰解演算子に Roe 型の行列散逸を選べるようにした（`config.yml` の `kind_lusgs_dissipation`）
   - `'scalar'`（既定・従来）: `0.5*(A-lambda*I)*S`。対角はセルごとのスカラー
@@ -47,6 +54,11 @@ All notable changes to this project will be documented in this file.
   （`area_vec[3]` は現状常に 0 なので数値は不変。3D 化に備えた整理）
 
 ### Fixed
+- `src/slow/time_integration/time_integration.py` 未知の `kind_time_scheme` を指定したときの
+  エラー処理が `kind_time_shceme`（綴り間違い）を参照しており、意図したメッセージではなく
+  `NameError` で落ちていた
+- `src/slow/orbital/orbital.py:write_gmsh2vtk` 欠けている `kwargs` を拾う `try` が裸の `except` で、
+  無関係な例外まで飲み込んで出力を黙って落とす可能性があった。`except KeyError` に絞った
 - 定常計算の外側ループの収束判定を修正した。2 つの不具合があった
   - `src/slow/orbital/orbital.py:check_convergence_outer` の相対／絶対の分岐が逆だった。
     `flag_convergence_relative_outerloop: True` のときに残差そのものを、`False` のときに
@@ -81,6 +93,18 @@ All notable changes to this project will be documented in this file.
   残差は厳密なので収束後の解は変わらないが、内部反復の収束が遅くなっていた（超音速ノズル計算で減衰率が 1.1--1.3 倍改善）
 
 ### Removed
+- デッドコードを削除した。いずれも実行経路から外れており、削除前後でデバッグ格子の
+  `log_slow` / `output_restart` / VTK がビット一致することを 6 通りの設定で確認済み
+  （scalar/matrix、定常/非定常、explicit_euler、slau2/haenel、GG+制限関数なし）
+  - `src/slow/geometry/` (684 行) どこからも import されておらず、`cli.py` の呼び出しは
+    コメントアウト済み。参照する `config['geometry']` セクションはどの `config.yml` にも無く、
+    実行することすらできない状態だった。`cli.py` のコメントアウトされた呼び出しも削除
+  - `src/slow/pending/` (240 行)、`src/slow/rhs/advection_para_pending.py` (371 行)
+  - `src/slow/orbital/orbital.py:parallel_execution_decorated` と `import concurrent.futures`
+    （参照は `advection.py` のコメントアウト行だけ。GIL のためスレッド並列は効かないので採らない方針）
+  - `src/slow/rhs/advection.py:rhs_advection_inner` 定義されているが呼ばれていない並列化の残骸
+  - 未使用の `import numpy` 4 箇所（`cli.py`, `general.py`, `explicit_euler.py`, `update.py`）と
+    未使用の `import orbital` 2 箇所、`meshdata.py` の未使用の空リスト
 - `src/slow/general/general.py` 未使用の `import matplotlib` を削除（未導入環境ではこれが原因で起動できなかった）
 - `requirements/requirements` `requirements.txt` と `pyproject.toml` に置き換えたため削除
 
