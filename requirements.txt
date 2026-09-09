@@ -1,0 +1,5 @@
+# Runtime requirements for SLOW
+#   pip install -r requirements.txt
+numpy>=1.22
+pyyaml>=6.0
+gmsh>=4.9.5

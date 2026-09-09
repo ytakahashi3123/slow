@@ -1,0 +1,4 @@
+# Development requirements for SLOW
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+pytest>=7.0

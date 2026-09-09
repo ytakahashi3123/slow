@@ -1,3 +1,11 @@
+# Frozen configuration for tests/test_rhs_snapshot.py
+#
+# tutorial/work_debug_fordebug/config.yml を複製し、以下だけを変更したもの。
+#   --flag_output_initial_state: スナップショット取得でファイルを書かせないため False
+#   --eps_muscl: MUSCL 再構築と制限関数を移流項でも通すため 1.0
+# スナップショットの基準値を固定するためのファイルなので、
+# tutorial/ 側の設定変更に追随させないこと（変更すれば基準値の作り直しが必要になる）。
+
 
 computational_setup:
   # Flag for initial or restart calculation
@@ -5,14 +13,14 @@ computational_setup:
   flag_initial: True
 
   # Maximum iteraction
-  iteration_maximum: 300
+  iteration_maximum: 200
 
   # Governing equations: Navier-Stokes
   flow_model: Navier-Stokes
 
 
 meshdata_io: 
-  filename_mesh: sphere.msh
+  filename_mesh: chimera.msh   # テスト実行時に絶対パスへ差し替える
 
 
 gas_properties:
@@ -29,7 +37,7 @@ initial_settings:
   # --Input domain name, for example, Fluid
   Fluid:
     # --Density, kg/m^3
-    density_initial: 1.e-4
+    density_initial: 1.e-2
     # --Velocities, m/s
     velocity_initial:
       - 100.0
@@ -46,10 +54,10 @@ boundary_conditions:
   freestream:
     kind: freestream
     velocity:
-      - 600.0
+      - 100.0
       - 0.0
       - 0.0
-    density: 1.e-4
+    density: 1.e-2
     temperature: 300.0
   
   wall:
@@ -59,17 +67,29 @@ boundary_conditions:
   outlet:
     kind: outlet
 
+  symmetry:
+    kind: symmetry
+
 
 transport_coefficients:
   # Transport coefficients
+  # Model: Sutherlandlaw or constant
+  kind: sutherlandlaw
+
   #--Viscosity(Sutherland)
   viscosity_sutherland:
     mu0: 1.716e-5
     t0: 273.15
     c: 110.4
+
+  #--Viscosity(Constant)
+  viscosity_constant:
+    mu0: 1.8e-5
+    lambda0: 1.e-3
+  
   # Prandtl numnber
   prandlt_number: 0.72
-  
+
 
 gradient_setting:
   # Spatial gradient calculation setting
@@ -113,14 +133,14 @@ time_integration:
 
   # Courant number for inner loop in usteady computation
   # valid when kind_time_determine: cfl
-  courant_number: 2.5
+  courant_number: 5.0
 
   # constant timestep (s) for innerr loop in usteady computation
   # valid when kind_time_determine: dt
   timestep_constant: 1.e-6
 
   # constant timestep (s) for outer loop (when using LUSGS unsteady simulation)
-  timestep_outer: 1.e-4
+  timestep_outer: 1.e-5
 
   # Temporal accuracy using LUSGS unsteady simulation
   # --2nd_backward_diff or 1st_backward_diff
@@ -128,19 +148,10 @@ time_integration:
   #kind_backward_difference: 1st_backward_diff
 
   # Maximum inner iteration
-  iteration_inner_maximum: 5
+  iteration_inner_maximum: 25
 
   # LUSGS variables
-  lusgs_beta: 1.01
-
-  # Dissipation for the LU-SGS implicit operator (non-diagonal blocks)
-  # --'scalar': 0.5*(A-lambda*I)*S。lambda=max(lambda_a,lambda_b) のスカラー散逸
-  #             安価。既定値（この項目を省略した場合もこちら）
-  # --'matrix': 0.5*(A-|A_Roe|)*S。Roe 平均による行列散逸で、
-  #             対角もブロック行列になる。内部反復あたりのコストは scalar の
-  #             約 1.6 倍だが、内部反復の減衰がノズル格子で 1.4--3.3 倍速くなるため
-  #             差し引きで有利。収束後の解は scalar と一致する
-  kind_lusgs_dissipation: scalar
+  lusgs_beta: 1.1
 
   # Convergence criterion for inner loop: relative residual or absolute
   # -- relative: True or absolute: False
@@ -168,7 +179,7 @@ restart_process:
   digid_step: 4
 
   # Restart step for reading
-  restart_step: 100
+  restart_step: 500
 
   # Restart file name (output)
   file_restart: restart.dat
@@ -200,7 +211,7 @@ post_process:
   filename_output_vtk: output.vtk
 
   # Flat to output initial state (iteration=0)
-  flag_output_initial_state: True
+  flag_output_initial_state: False
 
   # Output frequency
   frequency_output: 1
