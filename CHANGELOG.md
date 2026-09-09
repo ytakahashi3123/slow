@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file.
   - `tests/test_roe_dissipation.py` 行列散逸を検証する。固有ベクトル行列 P について `P*Lambda*P^-1 == A` を確認し、
     法線方向超音速で非対角ブロック `0.5*(A-|A|)` が厳密に 0 になること（上流化）も確かめる
   - `tests/test_lusgs_options.py` 散逸の種類の選択と時間項の組み立てを固定する
+  - `tests/test_lusgs_sweep.py` LU-SGS のスイープを検証する。人工格子に対して `D`, `L`, `U` を密行列として
+    独立に組み立て（非対角ブロックの `A` は複素ステップ微分で作る）、スイープの結果が
+    `(D+L)*D^-1*(D+U)*dq = b` を厳密に満たすことを確認する。
+    セル番号・法線の向き・掃引順のいずれかを取り違えると成立しない。
+    併せて掃引が黙って依存している面の並び（`face2cell_inner[0,n] < face2cell_inner[1,n]` かつ
+    第 0 行が単調非減少）と、各セルの外向き法線の面積重み和が 0 になること（境界面の向きを含む）を
+    凍結した 25 セル格子で固定する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `requirements.txt`, `requirements-dev.txt` 実行時／開発時の依存関係
