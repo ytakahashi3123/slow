@@ -584,14 +584,16 @@ class orbital(general):
 
   def check_convergence_outer(self, config, flag_converged_outer, sum_rhs):
 
+    # 相対／絶対の判定は check_convergence_inner と同じ向きにそろえる
+    # --flag_conv_relative=True: 初期残差との比、False: 残差そのもの
     criterion_convergence = config['time_integration']['criterion_convergence_outerloop']
     flag_conv_relative    = config['time_integration']['flag_convergence_relative_outerloop']
 
     if flag_conv_relative :
-      if sum_rhs[4] <= criterion_convergence :
+      if sum_rhs[4]/self.sum_rhs_init[4] <= criterion_convergence :
         flag_converged_outer = True
     else :
-      if sum_rhs[4]/self.sum_rhs_init[4] <= criterion_convergence :
+      if sum_rhs[4] <= criterion_convergence :
         flag_converged_outer = True
 
     return flag_converged_outer

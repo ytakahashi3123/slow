@@ -206,6 +206,10 @@ def main():
     if kind_steady_mode == 'steady': 
       flag_converged_outer = orbital.check_convergence_outer(config, flag_converged_outer, sum_rhs)
 
+      if flag_converged_outer :
+        print('Outer iteration converged ', )
+        break
+
 
   # Final results
   orbital.output_restart(config, dimension_dict, geom_dict, iteration, var_conserv, var_conserv_prev)

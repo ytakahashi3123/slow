@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
     併せて掃引が黙って依存している面の並び（`face2cell_inner[0,n] < face2cell_inner[1,n]` かつ
     第 0 行が単調非減少）と、各セルの外向き法線の面積重み和が 0 になること（境界面の向きを含む）を
     凍結した 25 セル格子で固定する
+  - `tests/test_convergence_check.py` 内側・外側ループの収束判定を固定する。
+    相対／絶対の判定が両者で同じ向きであることも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `requirements.txt`, `requirements-dev.txt` 実行時／開発時の依存関係
@@ -45,6 +47,15 @@ All notable changes to this project will be documented in this file.
   （`area_vec[3]` は現状常に 0 なので数値は不変。3D 化に備えた整理）
 
 ### Fixed
+- 定常計算の外側ループの収束判定を修正した。2 つの不具合があった
+  - `src/slow/orbital/orbital.py:check_convergence_outer` の相対／絶対の分岐が逆だった。
+    `flag_convergence_relative_outerloop: True` のときに残差そのものを、`False` のときに
+    初期残差との比を見ていた（`check_convergence_inner` は正しい向き）。
+    エネルギーの残差は 1e9 の大きさなので、既定の設定（相対・`1e-8`）では実質いつまでも判定が成立しなかった
+  - `src/slow/cli.py` 判定結果 `flag_converged_outer` がどこにも使われておらず、外側ループに `break` が無かった。
+    このため `criterion_convergence_outerloop` は指定しても効かず、常に `iteration_maximum` まで回っていた
+  - 実測（デバッグ格子 25 セル、定常、`iteration_maximum: 60`）: 既定の `1e-8` では 60 反復で収束条件に届かず、
+    修正前後で `restart.dat` はバイト一致。基準を `1e-2` に緩めると 16 反復で停止する（従来は 60 反復完走）
 - 2 次後退差分 (BDF2) の立ち上げを修正した。初期条件からの計算では過去の解が `Q^0` の 1 段しかなく、
   `var_conserv_prev[0] = var_conserv_prev[1] = Q^0` のまま BDF2 の式を使っていた。このとき
   `(1.5Q^1-2Q^0+0.5Q^0)/dt = 1.5*(Q^1-Q^0)/dt` となり、実効的に刻み幅 `dt/1.5` の 1 次後退差分を解いていた。
