@@ -7,9 +7,9 @@
 
 import numpy as np
 from slow.orbital.orbital import orbital
-from slow.time_integration import eigenvalue as eigenvalue_mod
 from slow.time_integration import flux_jacobian
 from slow.time_integration import lusgs
+from slow.time_integration import lusgs_diagonal_kernel
 from slow.time_integration import roe_dissipation
 
 @orbital.time_measurement_decorated
@@ -51,84 +51,14 @@ def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_d
   #var_diagonal[:] = 0.0
 
 
-  # Inner faces
-  for n_face in range(0,num_face):
-
-    # Face area vector
-    area = area_vec[0,n_face]
-    vecx = area_vec[1,n_face]
-    vecy = area_vec[2,n_face]
-    vecz = area_vec[3,n_face]
-    # Length
-    leng_a = length[0,n_face]
-    leng_b = length[1,n_face]
-
-
-    # Cell ID
-    # --from self cell side
-    n_cell_a = face2cell[0,n_face]
-    # --from neigboring cell
-    n_cell_b = face2cell[1,n_face]
-
-
-    # Primitive variables
-    prim_a = var_primitiv[:,n_cell_a]
-    prim_b = var_primitiv[:,n_cell_b]
-
-    # Maximum eigenvalue of Jacobian matrix
-    # --面の左右セルで評価して大きい方を採る。
-    #   lusgs_sweep も同じ値を使うので D+L+U が整合した分解になる。
-    #   面上の平均状態を使うと衝撃波近傍で散逸が不足し、内部反復の収束が悪化する
-    #   （ノズル CFL200 で 1.6 倍悪化。max なら逆に 2.4 倍改善する）
-    lenght_tmp = leng_a + leng_b
-    eigenvalue = max( eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_a[0], prim_a[1], prim_a[2], prim_a[3], prim_a[5], \
-                                                        viscosity[n_cell_a], lenght_tmp, vecx, vecy, vecz), \
-                      eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                        prim_b[0], prim_b[1], prim_b[2], prim_b[3], prim_b[5], \
-                                                        viscosity[n_cell_b], lenght_tmp, vecx, vecy, vecz) )
-
-    # Set diagonal values
-    var_diagonal[n_cell_a] = var_diagonal[n_cell_a] + eigenvalue*area
-    var_diagonal[n_cell_b] = var_diagonal[n_cell_b] + eigenvalue*area
-
-
-  # Boundary faces
-  for n_face in range(0,num_face_bd):
-
-    # Face area vector
-    area = area_vec_bd[0,n_face]
-    vecx = area_vec_bd[1,n_face]
-    vecy = area_vec_bd[2,n_face]
-    vecz = area_vec_bd[3,n_face]
-
-    # Virtual cell identificaton on boudary
-    vcell_bd = virtualcell_bd[n_face]
-
-    # Length
-    leng_a = length_bd[n_face]
-    leng_b = float(vcell_bd)*leng_a
-
-    # Cell ID
-    # --from self cell side
-    n_cell_a = face2cell_bd[0,n_face]
-    # Primitive variables
-    prim_a = var_primitiv[:,n_cell_a]
-    prim_b = var_primitiv_bd[:,n_face]
-
-    # Values on cell interface
-    prim   = float(vcell_bd)*0.50*( prim_a + prim_b ) + float(1-vcell_bd)*prim_b
-
-    # Maximum eigenvalue of Jacobian matrix
-    lenght_tmp = leng_a + leng_b
-    visc_tmp   = float(vcell_bd)*0.50*( viscosity[n_cell_a] + viscosity_bd[n_face] ) + float(1-vcell_bd)*viscosity_bd[n_face]
-    eigenvalue = eigenvalue_mod.get_max_eigenvalue(specfic_heat_ratio, \
-                                                   prim[0], prim[1], prim[2], prim[3], prim[5], \
-                                                   visc_tmp, lenght_tmp, vecx, vecy, vecz)
-
-    # Set diagonal values
-    var_diagonal[n_cell_a] = var_diagonal[n_cell_a] + eigenvalue*area
-
+  # 面ループの本体は lusgs_diagonal_kernel に置いてある
+  # （numba を掛けるため、配列とスカラーだけを引数に取る素の関数にしてある）
+  var_diagonal = lusgs_diagonal_kernel.accumulate_diagonal_scalar(
+                   num_face, num_face_bd, var_primitiv.shape[0],
+                   face2cell, face2cell_bd, virtualcell_bd,
+                   area_vec, area_vec_bd, length, length_bd,
+                   specfic_heat_ratio, var_primitiv, var_primitiv_bd,
+                   viscosity, viscosity_bd, var_diagonal)
 
   #var_dq = var_rhs
 

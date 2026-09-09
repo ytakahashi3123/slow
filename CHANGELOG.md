@@ -31,6 +31,19 @@ All notable changes to this project will be documented in this file.
 - `src/slow/general/thermodynamics.py` カーネルから呼べる熱力学関係（音速・全エンタルピー・
   最大固有値）。`orbital` の同名メソッドおよび `time_integration/eigenvalue.py` と
   ビット一致することを `tests/test_thermodynamics.py` で固定している（各 20,000 サンプル）
+- `src/slow/rhs/viscous_kernel.py` 粘性流束（応力テンソル・熱流束）と面ループを切り出した。
+  入れ子関数がクロージャでやりとりしていたのを独立した関数にした
+  - 実測: `flux_viscous` が **147 ms --> 0.32 ms（458 倍）**。**ビット一致**
+- `src/slow/time_integration/time_integration_kernel.py` 特性時間の面ループと、
+  保存変数から原始変数への変換のセルループ
+  - 実測: `get_characteristic_time` が **47 ms --> 0.11 ms（424 倍）**、
+    `update_primitive` が **13 ms --> 1.80 ms（7.1 倍）**。どちらも**ビット一致**
+  - `update_primitive` は負値検査のセルループが Python 側に残っている（1.8 ms）
+- `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループ（スカラー散逸）
+  - 実測: `get_diagonal` が **77 ms --> 32.4 ms（2.4 倍）**。**ビット一致**
+  - セルごとの時間項（`lusgs.get_time_term` を 1 セルずつ呼ぶ）が残っており、
+    そこが 32.4 ms の大半を占める
+- **内側反復の合計が 1,254 ms --> 53.1 ms（23.6 倍）**（ノズル格子 7,325 セル）
 - `src/slow/rhs/advection_kernel.py` 移流流束（SLAU2 / Haenel）と面ループを切り出した。
   もとは入れ子関数がクロージャで変数をやりとりしていたのを、引数と戻り値を明示した
   独立した関数にした（`get_flux_slau2` / `get_flux_haenel` / `accumulate_advection`）。

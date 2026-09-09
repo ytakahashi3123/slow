@@ -12,6 +12,7 @@ from slow.orbital.orbital import orbital
 from slow.time_integration import lusgs
 from slow.time_integration import lusgs_diagonal
 from slow.time_integration import lusgs_sweep
+from slow.time_integration import time_integration_kernel
 from slow.time_integration import update
 from slow.time_integration import explicit_euler
 
@@ -129,11 +130,10 @@ class time_integration(orbital):
 
     coord_cellcenter = metrics_dict['coord_cellcenter']
 
-    # Update conservative variables
-    for n_cell in range(0,num_cell):
-      conserv_tmp = var_conserv[:,n_cell]
-      var_primitiv[:,n_cell] = self.get_primitive(gas_constant, specific_heat_volum, conserv_tmp)
-    
+    # Update primitive variables（セルループの本体は time_integration_kernel）
+    var_primitiv = time_integration_kernel.update_primitive_from_conservative(
+                     num_cell, gas_constant, specific_heat_volum, var_conserv, var_primitiv)
+
     # Check variables
     for n_cell in range(0,num_cell):
       if var_primitiv[0,n_cell] < 0.0 or var_primitiv[4,n_cell] < 0.0 or var_primitiv[5,n_cell] < 0.0 :
@@ -224,101 +224,13 @@ class time_integration(orbital):
     viscosity           = transport_coefficient_dict['viscosity']
     viscosity_bd        = transport_coefficient_dict['viscosity_boundary']
 
-    # Initialization
-    character_time[:] = 0.0
-
-    for n_face in range(0,num_face):
-      # Face area vector
-      area = area_vec[0,n_face]
-      vecx = area_vec[1,n_face]
-      vecy = area_vec[2,n_face]
-      vecz = 0.0
-      # Length
-      leng_a = length[0,n_face]
-      leng_b = length[1,n_face]
-
-      # Cell ID
-      # --from self cell side
-      n_cell_a = face2cell[0,n_face]
-      # --from neigboring cell
-      n_cell_b = face2cell[1,n_face]
-
-      # Primitive variables
-      prim_a = var_primitiv[:,n_cell_a]
-      prim_b = var_primitiv[:,n_cell_b]
-
-      # Values on cell interface
-      prim   = 0.50*( prim_a + prim_b )
-      dens   = prim[0]
-      uvel   = prim[1]
-      vvel   = prim[2]
-      wvel   = prim[3]
-      #temp   = prim[4]
-      pres   = prim[5]
-
-      # Contravariant velocity
-      cvel = uvel*vecx + vvel*vecy + wvel*vecz
-
-      # Thermodynamic properties: speed of sound
-      sos   = orbital.get_speedofsound("self", specfic_heat_ratio, dens, pres)
-
-      # Maximum eigenvalue of Jacobian matrix: lambda=|u|+c + (viscous contribution) (because lambda=|u|+c, |u|-c, |u| in inviscid flow)
-      # (viscous contribution)=2*mu/(rho*d)
-      lenght_tmp = leng_a + leng_b
-      visc_tmp   = 0.50*( viscosity[n_cell_a] + viscosity[n_cell_b] )
-      eigenvalue = abs(cvel) + sos + 2.0*visc_tmp/(dens*lenght_tmp)
-      character_time[n_cell_a] = max(character_time[n_cell_a], eigenvalue*area)
-      character_time[n_cell_b] = max(character_time[n_cell_b], eigenvalue*area)
-
-
-    for n_face in range(0,num_face_bd):
-      # Face area vector
-      area = area_vec_bd[0,n_face]
-      vecx = area_vec_bd[1,n_face]
-      vecy = area_vec_bd[2,n_face]
-      vecz = 0.0
-
-      # Virtual cell identificaton on boudary
-      vcell_bd = virtualcell_bd[n_face]
-
-      # Length
-      leng_a = length_bd[n_face]
-      leng_b = float(vcell_bd)*leng_a
-
-      # Cell ID
-      # --from self cell side
-      n_cell_a = face2cell_bd[0,n_face]
-
-      # Primitive variables
-      prim_a = var_primitiv[:,n_cell_a]
-      prim_b = var_primitiv_bd[:,n_face]
-
-      # Values on cell interface
-      prim   = float(vcell_bd)*0.50*( prim_a + prim_b ) + float(1-vcell_bd)*prim_b
-      dens   = prim[0]
-      uvel   = prim[1]
-      vvel   = prim[2]
-      wvel   = prim[3]
-      #temp   = prim[4]
-      pres   = prim[5]
-
-      # Contravariant velocity
-      cvel = uvel*vecx + vvel*vecy + wvel*vecz
-
-      # Thermodynamic properties: speed of sound
-      sos   = orbital.get_speedofsound("self", specfic_heat_ratio, dens, pres)
-  
-      # Maximum eigenvalue of Jacobian matrix: lambda=|u|+c + (viscous contribution) (because lambda=|u|+c, |u|-c, |u| in inviscid flow)
-      # (viscous contribution)=2*mu/(rho*d)
-      lenght_tmp = leng_a + leng_b
-      visc_tmp   = float(vcell_bd)*0.50*( viscosity[n_cell_a] + viscosity_bd[n_face] ) + float(1-vcell_bd)*viscosity_bd[n_face]
-      eigenvalue = abs(cvel) + sos + 2.0*visc_tmp/(dens*lenght_tmp)
-      character_time[n_cell_a] = max(character_time[n_cell_a], eigenvalue*area)
-
-    # characteristic time
-    for n_cell in range(0,num_cell):
-      character_time[n_cell] = volume[n_cell]/character_time[n_cell]
-
+    # 面ループの本体は time_integration_kernel に置いてある
+    character_time = time_integration_kernel.accumulate_character_time(
+                       num_face, num_face_bd, num_cell, var_primitiv.shape[0],
+                       face2cell, face2cell_bd, virtualcell_bd,
+                       area_vec, area_vec_bd, length, length_bd, volume,
+                       specfic_heat_ratio, var_primitiv, var_primitiv_bd,
+                       viscosity, viscosity_bd, character_time)
 
     return character_time
 
