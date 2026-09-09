@@ -24,7 +24,7 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
     pres_l = var_b[5]
 
 #    q2_l   = var_b[1]**2 + var_b[2]**2 + var_b[3]**2
-    q2_l   = uvel_l**2 + vvel_l**2 + wvel_l**2
+    q2_l   = uvel_l*uvel_l + vvel_l*vvel_l + wvel_l*wvel_l
     sos_l  = orbital.get_speedofsound('self',specfic_heat_ratio, dens_l, pres_l)
     enth_l = orbital.get_enthalpy('self',specific_heat_volum, dens_l, temp_l, [uvel_l,vvel_l,wvel_l], pres_l)
 
@@ -37,7 +37,7 @@ def flux_advection(config, dimension_dict, geom_dict, metrics_dict, gas_property
     pres_r = var_a[5]
 
 #    q2_r   = var_a[1]**2 + var_a[2]**2 + var_a[3]**2
-    q2_r   = uvel_r**2 + vvel_r**2 + wvel_r**2
+    q2_r   = uvel_r*uvel_r + vvel_r*vvel_r + wvel_r*wvel_r
     sos_r  = orbital.get_speedofsound('self',specfic_heat_ratio, dens_r, pres_r)
     enth_r = orbital.get_enthalpy('self',specific_heat_volum, dens_r, temp_r, [uvel_r,vvel_r,wvel_r], pres_r)
 

@@ -105,7 +105,9 @@ class orbital(general):
   def get_total_energy(self, density, specific_heat_volum, temperature, velocity):
     # Total energy: rho*Cv*T + 0.5*rho*U^2
 
-    total_energy = density*specific_heat_volum*temperature + 0.50*density*( velocity[0]**2+velocity[1]**2+velocity[2]**2 )
+    # 二乗は x*x で書く（べき乗は 1 ULP 違うことがあり、コンパイルした版と一致しない）
+    total_energy = density*specific_heat_volum*temperature \
+                 + 0.50*density*( velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2] )
 
     return total_energy
 
@@ -113,7 +115,10 @@ class orbital(general):
   def get_enthalpy(self, specific_heat_volum, density, temperature, velocity, pressure):
     # Specific enthalpy: Cv*T + 0.5*U^2 + p/rho
 
-    enthalpy = specific_heat_volum*temperature + 0.50*( velocity[0]**2+velocity[1]**2+velocity[2]**2 ) + pressure/density
+    # 二乗は x*x で書く（べき乗は 1 ULP 違うことがあり、コンパイルした版と一致しない）
+    enthalpy = specific_heat_volum*temperature \
+             + 0.50*( velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2] ) \
+             + pressure/density
 
     return enthalpy
 
@@ -139,7 +144,8 @@ class orbital(general):
     prim_u    =  conservative[1]/conservative[0]
     prim_v    =  conservative[2]/conservative[0]
     prim_w    =  conservative[3]/conservative[0]
-    prim_temp =( conservative[4] - 0.50*prim_rho*(prim_u**2 + prim_v**2 + prim_w**2) )/(prim_rho*specific_heat_volum)
+    prim_temp =( conservative[4] \
+               - 0.50*prim_rho*(prim_u*prim_u + prim_v*prim_v + prim_w*prim_w) )/(prim_rho*specific_heat_volum)
     prim_pres = self.get_pressure_eos(prim_rho, gas_constant, prim_temp)
 
     primtive = [prim_rho, prim_u, prim_v, prim_w, prim_temp, prim_pres]

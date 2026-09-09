@@ -28,6 +28,9 @@ All notable changes to this project will be documented in this file.
 - `src/slow/general/jit.py` 面ループ・セルループを numba でコンパイルする `kernel` デコレータ。
   numba は**任意依存**で、無ければ恒等デコレータになるので挙動は変わらず速度だけが変わる
   （`pip install -e ".[fast]"` で入る。`SLOW_DISABLE_NUMBA=1` で明示的に切れる）
+- `src/slow/general/thermodynamics.py` カーネルから呼べる熱力学関係（音速・全エンタルピー・
+  最大固有値）。`orbital` の同名メソッドおよび `time_integration/eigenvalue.py` と
+  ビット一致することを `tests/test_thermodynamics.py` で固定している（各 20,000 サンプル）
 - `src/slow/gradient/gradient_kernel.py` Green-Gauss 勾配の面ループを、配列とスカラーだけを
   引数に取る素の関数として切り出した。ループの形は元のままで、原始変数についての内側ループを
   明示的に書いてある（6 要素の numpy スライスはスカラー演算より遅く、numba も掛けられない）
@@ -83,6 +86,15 @@ All notable changes to this project will be documented in this file.
     （いずれも流れ場が発達するほど効果が大きい）。差し引きで有利
 
 ### Changed
+- 数値計算で使う二乗を `x**2` から `x*x` にそろえた（`orbital.get_enthalpy` /
+  `get_total_energy` / `get_primitive`、`rhs/advection.py` の `q2_l` / `q2_r`）。
+  `x**2` と `x*x` は倍精度で 0.09% の値について 1 ULP 違い、numba は `x**2` を
+  再現できない（`x**2` / `math.pow` / `np.power` のいずれも乗算になる）ため、
+  カーネルとその外側で同じ式が食い違う状態を避けるための変更
+  - 一度だけ結果が変わる。実測: `tests/test_rhs_snapshot.py` (`rtol=1e-12`) は通り
+    基準値の作り直しは不要。デバッグ格子の定常・`haenel` はビット一致、
+    非定常 BDF2 で `restart.dat` 最大相対差 1.5e-15、ノズル格子で `Residuals` 1.1e-16。
+    **定常を収束まで流すと反復数は同一（205 回）で、収束解の差は 9.4e-16**
 - `src/` 以下を `src/slow/` パッケージ配下へ移動。`import` は `slow.` 起点の絶対 import に統一
   - `src/slow.py` --> `src/slow/cli.py`（`main()` を関数として呼べる形にした）
 - バージョンを `src/slow/__init__.py` の `__version__` に一元化。`pyproject.toml` はこれを読む
