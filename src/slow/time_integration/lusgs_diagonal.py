@@ -13,7 +13,7 @@ from slow.time_integration import lusgs
 from slow.time_integration import roe_dissipation
 
 @orbital.time_measurement_decorated
-def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq):
+def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq, num_conserv_prev_level=lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2):
 
   # Main routine
 
@@ -21,7 +21,8 @@ def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_d
   if lusgs.get_kind_dissipation(config) == lusgs.KIND_DISSIPATION_MATRIX :
     return get_diagonal_matrix(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, \
                                transport_coefficient_dict, var_primitiv, var_primitiv_bd, \
-                               var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq)
+                               var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq, \
+                               num_conserv_prev_level)
 
   # Input parameters
   num_conserv    = dimension_dict['num_conservative']
@@ -135,7 +136,8 @@ def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_d
   # Diagonal element for factoriization matrix and delta Q
   for n_cell in range(0,num_cell):
     diag_time, dq_unst, face_scale = lusgs.get_time_term(config, n_cell, volume, var_dt, \
-                                                         var_conserv, var_conserv_prev)
+                                                         var_conserv, var_conserv_prev, \
+                                                         num_conserv_prev_level)
     var_diagonal[n_cell] = diag_time + face_scale*var_diagonal[n_cell]
     var_dq[:,n_cell]     = ( -var_rhs[:,n_cell]-dq_unst )/var_diagonal[n_cell]
 
@@ -144,7 +146,7 @@ def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_d
 
 
 @orbital.time_measurement_decorated
-def get_diagonal_matrix(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq):
+def get_diagonal_matrix(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq, num_conserv_prev_level=lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2):
 
   # Block-diagonal version used with the matrix dissipation |A_Roe|
   #
@@ -240,7 +242,8 @@ def get_diagonal_matrix(config, dimension_dict, geom_dict, metrics_dict, gas_pro
   # Diagonal block for factorization and delta Q
   for n_cell in range(0,num_cell):
     diag_time, dq_unst, face_scale = lusgs.get_time_term(config, n_cell, volume, var_dt, \
-                                                         var_conserv, var_conserv_prev)
+                                                         var_conserv, var_conserv_prev, \
+                                                         num_conserv_prev_level)
     diagonal_block = diag_time*identity + face_scale*var_diagonal[:,:,n_cell]
     # 以降のスイープを行列ベクトル積だけで済ませるため、ここで逆行列にしておく
     var_diagonal[:,:,n_cell] = np.linalg.inv(diagonal_block)

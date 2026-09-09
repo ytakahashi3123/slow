@@ -9,6 +9,9 @@
 # --'scalar': 0.5*(A-lambda*I)*S。lambda=max(lambda_a,lambda_b) のスカラー散逸
 # --'matrix': 0.5*(A-|A_Roe|)*S。Roe 平均による行列散逸。
 #             対角もブロック行列になる
+# 2 次後退差分 (BDF2) が必要とする過去の解の段数: Q^(n) と Q^(n-1)
+NUM_PREV_LEVEL_REQUIRED_BDF2 = 2
+
 KIND_DISSIPATION_SCALAR = 'scalar'
 KIND_DISSIPATION_MATRIX = 'matrix'
 AVAIL_KIND_DISSIPATION  = (KIND_DISSIPATION_SCALAR, KIND_DISSIPATION_MATRIX)
@@ -33,7 +36,8 @@ def get_kind_dissipation(config):
   return kind_dissipation
 
 
-def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev):
+def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev,
+                  num_conserv_prev_level=NUM_PREV_LEVEL_REQUIRED_BDF2):
   """
   Time-derivative contribution to the LU-SGS system for one cell
 
@@ -42,12 +46,23 @@ def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev)
     --dq_unst:   右辺に加える非定常項（保存変数と同じ長さのベクトル。定常計算では 0）
     --face_scale: 面の寄与にかける係数（定常計算では過剰緩和係数 lusgs_beta が入る）
 
+  --num_conserv_prev_level: var_conserv_prev に入っている「本物の」過去の解の段数。
+      2 段目 Q^(n-1) が揃っていない最初のステップで 2 次後退差分を使うと、
+      Q^(n-1)=Q^(n) となって式が 1.5*(Q^(n+1)-Q^(n))/dt に退化し、
+      刻み幅 dt/1.5 の 1 次後退差分を解くことになる。この O(dt) の誤差は
+      1 ステップだけでも最後まで残り、全体の時間精度を 1 次に落とす。
+      そのため段数が足りないステップは 1 次後退差分で立ち上げる。
   """
 
   kind_steady_mode         = config['time_integration']['kind_steady_mode']
   lusgs_beta               = config['time_integration']['lusgs_beta']
   kind_backward_difference = config['time_integration']['kind_backward_difference']
   var_dt_const             = config['time_integration']['timestep_outer']
+
+  # 過去の解が足りないステップは 1 次後退差分で立ち上げる
+  if kind_backward_difference == '2nd_backward_diff' and \
+     num_conserv_prev_level < NUM_PREV_LEVEL_REQUIRED_BDF2 :
+    kind_backward_difference = '1st_backward_diff'
 
   if kind_steady_mode == 'steady' :
     # Steady flow

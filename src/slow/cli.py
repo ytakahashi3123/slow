@@ -80,16 +80,17 @@ def main():
   var_primitiv, \
   var_conserv, \
   var_conserv_prev, \
-  iteration = flowfield.initialize_flowfield(config,            \
-                                             dimension_dict,    \
-                                             geom_dict,         \
-                                             metrics_dict,      \
-                                             meshnode_dict,     \
-                                             meshelem_dict,     \
-                                             gas_property_dict, \
-                                             var_primitiv,      \
-                                             var_conserv,       \
-                                             var_conserv_prev)
+  iteration, \
+  num_conserv_prev_level = flowfield.initialize_flowfield(config,            \
+                                                          dimension_dict,    \
+                                                          geom_dict,         \
+                                                          metrics_dict,      \
+                                                          meshnode_dict,     \
+                                                          meshelem_dict,     \
+                                                          gas_property_dict, \
+                                                          var_primitiv,      \
+                                                          var_conserv,       \
+                                                          var_conserv_prev)
 
 
   # Initialize gradient variables
@@ -168,7 +169,8 @@ def main():
                                                                        var_rhs, \
                                                                        var_dt, \
                                                                        var_diagonal, \
-                                                                       var_dq)
+                                                                       var_dq, \
+                                                                       num_conserv_prev_level)
 
       # Residuals
       sum_rhs = orbital.display_residual(config, iteration, dimension_dict, var_rhs)
@@ -182,7 +184,10 @@ def main():
 
 
     # Set privous conservative variables
-    var_conserv_prev = time_integration.set_conservative_previous(config, var_conserv, var_conserv_prev)
+    var_conserv_prev, \
+    num_conserv_prev_level = time_integration.set_conservative_previous(config, var_conserv, \
+                                                                        var_conserv_prev, \
+                                                                        num_conserv_prev_level)
 
     # Increment
     iteration = iteration + 1

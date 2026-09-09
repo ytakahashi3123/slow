@@ -55,7 +55,7 @@ class time_integration(orbital):
     return var_diagonal, var_dq
 
 
-  def time_integration_routine(self, config, iteration_inner, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq):
+  def time_integration_routine(self, config, iteration_inner, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_gradient, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq, num_conserv_prev_level=lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2):
 
     # 時間積分を行う: LU-SGS method
 
@@ -69,7 +69,7 @@ class time_integration(orbital):
       var_diagonal, var_dq = self.reinitialize_time_integratioin(config, var_diagonal, var_dq)
 
       # Calculate diagonal
-      var_diagonal, var_dq = lusgs_diagonal.get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq)
+      var_diagonal, var_dq = lusgs_diagonal.get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_primitiv_bd, var_conserv, var_conserv_prev, var_rhs, var_dt, var_diagonal, var_dq, num_conserv_prev_level)
 
       # Sweep
       var_dq = lusgs_sweep.sweep_jacobian(config, dimension_dict, geom_dict, metrics_dict, gas_property_dict, transport_coefficient_dict, var_primitiv, var_conserv, var_diagonal, var_dq)
@@ -97,13 +97,16 @@ class time_integration(orbital):
     return var_conserv, var_primitiv, flag_converged_inner
 
   @orbital.time_measurement_decorated
-  def set_conservative_previous(self, config, var_conserv, var_conserv_prev):
+  def set_conservative_previous(self, config, var_conserv, var_conserv_prev, num_conserv_prev_level=lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2):
     # Set privious conservative variables
 
     var_conserv_prev[1,:,:] = var_conserv_prev[0,:,:]
     var_conserv_prev[0,:,:] = var_conserv[:,:]
 
-    return var_conserv_prev
+    # 1 ステップ進んだので本物の過去の解が 1 段増える（BDF2 に必要な 2 段で飽和する）
+    num_conserv_prev_level = min( num_conserv_prev_level+1, lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2 )
+
+    return var_conserv_prev, num_conserv_prev_level
 
   @orbital.time_measurement_decorated
   def update_primitive(self, config, geom_dict, metrics_dict, gas_property_dict, var_conserv, var_primitiv):

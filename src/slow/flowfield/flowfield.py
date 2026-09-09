@@ -170,6 +170,10 @@ class flowfield(orbital):
         var_conserv[3,i]  = var_primitiv[0,i]*var_primitiv[3,i]
         var_conserv[4,i]  = self.get_total_energy(var_primitiv[0,i], specific_heat_volum, var_primitiv[4,i], [var_primitiv[1,i], var_primitiv[2,i], var_primitiv[3,i] ])
 
+      # 初期条件からの計算では過去の解が Q^0 の 1 段しかない。
+      # BDF2 は Q^(n-1) も要るので、最初のステップだけ 1 次後退差分で立ち上げる
+      # （そのための段数を num_conserv_prev_level で持ち回す）
+      num_conserv_prev_level = 1
       if kind_steady_mode == 'unsteady' :
         for n in range(0,num_conserv):
           var_conserv_prev[0,n,:] = var_conserv[n,:]
@@ -184,7 +188,8 @@ class flowfield(orbital):
       print('--from restart file')
 
       # Reading restart data
-      iteration, self.sum_rhs_init, var_conserv, var_conserv_prev = self.read_restart(config, dimension_dict, var_conserv, var_conserv_prev)
+      iteration, self.sum_rhs_init, var_conserv, var_conserv_prev, \
+      num_conserv_prev_level = self.read_restart(config, dimension_dict, var_conserv, var_conserv_prev)
 
       # Primitive variables
       for n_cell in range(0,num_cell):
@@ -194,7 +199,7 @@ class flowfield(orbital):
 
     print('--Interation: ',iteration)
 
-    return var_primitiv, var_conserv,  var_conserv_prev, iteration
+    return var_primitiv, var_conserv,  var_conserv_prev, iteration, num_conserv_prev_level
 
   
   def set_transport_coefficients(self, config, geom_dict, gas_property_dict, var_primitiv, var_primitiv_bd, transport_coefficient_dict):

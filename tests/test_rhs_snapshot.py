@@ -103,7 +103,7 @@ def evaluate_rhs(advection_scheme):
   var_primitiv, var_primitiv_bd, \
   var_conserv, var_conserv_prev = flowfield_obj.define_variables(config, dimension_dict, geom_dict)
 
-  var_primitiv, var_conserv, var_conserv_prev, _ = \
+  var_primitiv, var_conserv, var_conserv_prev, _, _ = \
     flowfield_obj.initialize_flowfield(config, dimension_dict, geom_dict, metrics_dict, \
                                        meshnode_dict, meshelem_dict, gas_property_dict, \
                                        var_primitiv, var_conserv, var_conserv_prev)

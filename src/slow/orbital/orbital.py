@@ -245,6 +245,8 @@ class orbital(general):
 
 
     # Previous conservative for unsteady simulation
+    # --BDF2 に必要な 2 段が本当に揃ったかを num_conserv_prev_level で返す
+    num_conserv_prev_level = 1
     if kind_steady_mode == 'unsteady' :
       file_unsteady = config['restart_process']['file_unsteady']
       if flag_time_series :
@@ -263,6 +265,7 @@ class orbital(general):
         for n in range(0,num_conserv):
           var_conserv_prev[0,n,:] = data_input[:,n]
           var_conserv_prev[1,n,:] = data_input[:,n+num_conserv]
+        num_conserv_prev_level = 2
       else :
         # Unsteady fileが存在しない場合は最新ステップの保存量で代用
          for n in range(0,num_conserv):
@@ -270,7 +273,7 @@ class orbital(general):
           var_conserv_prev[1,n,:] = var_conserv[n,:]
 
 
-    return iteration, sum_rhs_init_tmp, var_conserv, var_conserv_prev
+    return iteration, sum_rhs_init_tmp, var_conserv, var_conserv_prev, num_conserv_prev_level
 
 
   def output_tecplot(self, config, dimension_dict, grid_list, geom_list, iteration, var_primitiv, var_primitiv_bd, var_gradient, var_limiter):

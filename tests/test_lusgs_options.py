@@ -120,3 +120,87 @@ def test_unknown_time_scheme_stops_the_program(kind_steady_mode, kind_backward_d
   with pytest.raises(SystemExit):
     lusgs.get_time_term(config, 0, volume, var_dt, var_conserv, var_conserv_prev)
 
+
+def test_second_order_backward_difference_falls_back_while_the_history_is_short():
+  """
+  過去の解が 1 段しかないステップでは BDF2 を使わず 1 次後退差分で立ち上げること。
+
+  Q^(n-1) が無いまま BDF2 の式を使うと Q^(n-1)=Q^(n) となり、
+  (1.5Q-2Q^n+0.5Q^n)/dt = 1.5*(Q-Q^n)/dt すなわち刻み幅 dt/1.5 の
+  1 次後退差分になる。この O(dt) の誤差は 1 ステップだけでも最後まで残り、
+  全体の時間精度を 2 次から 1 次に落とす（実測: 25 セルのケースで
+  観測次数 2.09 -> 1.21、最細の dt で誤差 9.8 倍）。
+  """
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  timestep_outer = 1.0e-4
+  config = make_config(kind_backward_difference='2nd_backward_diff', timestep_outer=timestep_outer)
+
+  for n_cell in range(0, NUM_CELL):
+    diag_time, dq_unst, face_scale = lusgs.get_time_term(config, n_cell, volume, var_dt, \
+                                                         var_conserv, var_conserv_prev, \
+                                                         num_conserv_prev_level=1)
+    # 1 次後退差分と完全に一致すること
+    diag_ref, dq_ref, scale_ref = lusgs.get_time_term(
+        make_config(kind_backward_difference='1st_backward_diff', timestep_outer=timestep_outer),
+        n_cell, volume, var_dt, var_conserv, var_conserv_prev)
+
+    assert diag_time == pytest.approx(diag_ref, rel=1.0e-14)
+    np.testing.assert_allclose(dq_unst, dq_ref, rtol=1.0e-14)
+    assert face_scale == scale_ref
+
+
+def test_second_order_backward_difference_is_used_once_the_history_is_complete():
+  # 2 段揃えば BDF2 に戻ること。既定値も 2 段揃った状態とする
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  config = make_config(kind_backward_difference='2nd_backward_diff')
+
+  for n_cell in range(0, NUM_CELL):
+    with_level = lusgs.get_time_term(config, n_cell, volume, var_dt, var_conserv, \
+                                     var_conserv_prev, num_conserv_prev_level=2)
+    default    = lusgs.get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev)
+
+    assert with_level[0] == pytest.approx(default[0], rel=1.0e-14)
+    np.testing.assert_allclose(with_level[1], default[1], rtol=1.0e-14)
+    assert with_level[2] == default[2]
+    # BDF2 の対角は 1 次後退差分より大きい（係数 1.5）
+    first_order = lusgs.get_time_term(
+        make_config(kind_backward_difference='1st_backward_diff'),
+        n_cell, volume, var_dt, var_conserv, var_conserv_prev)
+    assert with_level[0] > first_order[0]
+
+
+def test_first_order_backward_difference_is_unaffected_by_the_history_length():
+  # 1 次後退差分は Q^(n) だけで足りるので段数に依らない
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  config = make_config(kind_backward_difference='1st_backward_diff')
+
+  for n_cell in range(0, NUM_CELL):
+    short = lusgs.get_time_term(config, n_cell, volume, var_dt, var_conserv, \
+                                var_conserv_prev, num_conserv_prev_level=1)
+    full  = lusgs.get_time_term(config, n_cell, volume, var_dt, var_conserv, \
+                                var_conserv_prev, num_conserv_prev_level=2)
+
+    assert short[0] == full[0]
+    np.testing.assert_allclose(short[1], full[1], rtol=1.0e-14)
+    assert short[2] == full[2]
+
+
+def test_previous_conservative_shift_counts_up_the_available_history():
+  # set_conservative_previous が段数を数え上げ、BDF2 に必要な 2 段で飽和すること
+
+  from slow.time_integration.time_integration import time_integration
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  config = make_config()
+  ti     = time_integration()
+
+  var_conserv_prev, level = ti.set_conservative_previous(config, var_conserv, var_conserv_prev, 1)
+  assert level == 2
+  # Q^(n) には直前の解が入る
+  np.testing.assert_allclose(var_conserv_prev[0,:,:], var_conserv, rtol=1.0e-14)
+
+  var_conserv_prev, level = ti.set_conservative_previous(config, var_conserv, var_conserv_prev, level)
+  assert level == 2
