@@ -10,6 +10,8 @@
 #
 
 import logging
+import math
+
 import numpy as np
 #from platform import python_version
 from slow.orbital.orbital import orbital
@@ -177,17 +179,11 @@ class meshdata(orbital):
     # Node coordinateを取得
     logger.info('Getting node data...')
     num_node = sum(num_node_list)
+    # gmsh は全ノードを一度に返せるので、ノードごとに getNode を呼ばない
+    # （ノード数に比例して呼び出し負荷がそのまま乗るため。実測で 167 倍）
     coord_node = np.zeros(num_node*3).reshape(num_node,3)
-    dim_node = np.zeros(num_node).reshape(num_node).astype(int)
-    tag_node = np.zeros(num_node).reshape(num_node).astype(int)
-    for n in range(0,num_node):
-      nodecoord_tmp, parametriccoord_tmp, dim_tmp, tag_tmp = gmsh.model.mesh.getNode(n+1)
-      coord_node[n,0] = nodecoord_tmp[0]
-      coord_node[n,1] = nodecoord_tmp[1]
-      coord_node[n,2] = nodecoord_tmp[2]
-      dim_node[n] =  dim_tmp # 使わない？
-      tag_node[n] =  tag_tmp # 使わない？
-      #print('Nodes: ', coord_node[n,0], coord_node[n,1], coord_node[n,2], dim_tmp, tag_tmp)
+    nodetag_all, nodecoord_all, _parametriccoord_all = gmsh.model.mesh.getNodes()
+    coord_node[np.asarray(nodetag_all, dtype=int)-1, :] = np.asarray(nodecoord_all).reshape(-1,3)
 
     # Elements情報を取得
     # Types: bar(1) tri(2) quad(3) tet(4) hex(5) prism(6) pyramid(7)
@@ -197,48 +193,29 @@ class meshdata(orbital):
     dim_elem       = np.zeros(num_elem).reshape(num_elem).astype(int)
     tag_elem       = np.zeros(num_elem).reshape(num_elem).astype(int)
     num_elembytype = np.zeros(self.num_type_elem).reshape(self.num_type_elem).astype(int)
-    nodetag_elem_list = []
+    nodetag_elem_list = [None]*num_elem
     index_l2g_tmp  = [ [],[],[],[],[],[],[] ]
-    for n in range(0,num_elem):
-      elemtype_tmp, nodetag_elem_tmp, elemdim_tmp, elemtag_tmp = gmsh.model.mesh.getElement(n+1)
-      type_elem[n] = elemtype_tmp
-      dim_elem[n]  = elemdim_tmp
-      tag_elem[n]  = elemtag_tmp
-      # それぞれのElementタイプに対して最大配列サイズを確定する。
-      # およびそれぞれのElementタイプのローカルなインデクス-->グローバルなインデクスを取得する。
-      #（他により良い実装はある気がする）
-      if type_elem[n] == self.id_type_bar :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_tri :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_quad :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_tet :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_hex :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_prism :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      elif type_elem[n] == self.id_type_pyramid :
-        m = type_elem[n]-1
-        num_elembytype[m] = num_elembytype[m] + 1
-        index_l2g_tmp[m].append(n)
-      #print('Elements:', '-type',elemtype_tmp, '-dim.', elemdim_tmp, '-physics.', elemtag_tmp)
 
-      # 全体の要素情報を記憶しておく
-      nodetag_elem_list.append(nodetag_elem_tmp)
+    # gmsh はエンティティごとに要素をまとめて返せるので、要素ごとに getElement を呼ばない
+    # （実測で 40 倍）
+    for dim_tmp, tag_tmp in entities:
+      elemtypes_tmp, elemtags_tmp, elemnodetags_tmp = gmsh.model.mesh.getElements(dim_tmp, tag_tmp)
+      for elemtype_tmp, tags_tmp, nodetags_tmp in zip(elemtypes_tmp, elemtags_tmp, elemnodetags_tmp):
+        index_tmp = np.asarray(tags_tmp, dtype=int) - 1
+        type_elem[index_tmp] = elemtype_tmp
+        dim_elem[index_tmp]  = dim_tmp
+        tag_elem[index_tmp]  = tag_tmp
+        # ノード番号は後で並び替えるので要素ごとに切り出しておく
+        nodetags_tmp = np.asarray(nodetags_tmp).reshape(len(index_tmp), self.num_nodebytype[elemtype_tmp-1])
+        for m in range(0, len(index_tmp)):
+          nodetag_elem_list[index_tmp[m]] = nodetags_tmp[m,:]
+
+    # それぞれのElementタイプのローカルなインデクス-->グローバルなインデクス
+    # （昇順である必要がある。後段のフェイス生成順と LU-SGS の掃引順がこれに依存している）
+    for m in range(0, self.num_type_elem):
+      index_l2g_tmp[m]  = np.flatnonzero(type_elem == m+1).tolist()
+      num_elembytype[m] = len(index_l2g_tmp[m])
+
     #print( num_elembytype, index_l2g_tmp)
 
 
@@ -253,7 +230,8 @@ class meshdata(orbital):
 
       for i in range(0,self.num_type_elem):
         for n in range(0,num_elembytype[i]):
-          elemtype_tmp, nodetag_elem_tmp, elemdim_tmp, elemtag_tmp = gmsh.model.mesh.getElement(index_l2g_tmp[i][n]+1)
+          # 既に nodetag_elem_list に入っているので取り直さない
+          nodetag_elem_tmp = nodetag_elem_list[ index_l2g_tmp[i][n] ]
 
           # 要素の並びが右回りか左回りか判定するためにここで面積(volume)計算も行っている
           # Volumeが負のときは右回りになるので並び替えはしない。正のときは左回りと判定して並び替えを行う
@@ -264,8 +242,10 @@ class meshdata(orbital):
             m2 = int(nodetag_elem_tmp[2])-1
             vec01 = coord_node[m1,:]-coord_node[m0,:]
             vec02 = coord_node[m2,:]-coord_node[m0,:]
-            veccross = np.cross(vec01,vec02)
-            volume_tmp = 0.50*veccross*dz
+            # np.cross / np.linalg.norm は 3 要素ベクトルには呼び出し負荷が大きすぎるので成分で書く
+            volume_tmp = ( 0.50*dz*( vec01[1]*vec02[2] - vec01[2]*vec02[1] ), \
+                           0.50*dz*( vec01[2]*vec02[0] - vec01[0]*vec02[2] ), \
+                           0.50*dz*( vec01[0]*vec02[1] - vec01[1]*vec02[0] ) )
             # Reordering
             #if any((x > 0 for x in volume_tmp)) :
             if volume_tmp[2] > 0.0 :
@@ -273,7 +253,9 @@ class meshdata(orbital):
               nodetag_elem_tmp[1] = m2 + 1
               nodetag_elem_tmp[2] = m1 + 1
             # Volume
-            volume_elem[index_l2g_tmp[i][n]] = np.linalg.norm( volume_tmp )
+            volume_elem[index_l2g_tmp[i][n]] = math.sqrt( volume_tmp[0]*volume_tmp[0]     \
+                                                          + volume_tmp[1]*volume_tmp[1]     \
+                                                          + volume_tmp[2]*volume_tmp[2] )
             # Cell center coordinate
             coord_cellcenter_elem[:,index_l2g_tmp[i][n]] = (coord_node[m0,:]+coord_node[m1,:]+coord_node[m2,:])/3.0
 
@@ -285,8 +267,10 @@ class meshdata(orbital):
             m3 = int(nodetag_elem_tmp[3])-1
             vec13 = coord_node[m1,:]-coord_node[m3,:]
             vec20 = coord_node[m2,:]-coord_node[m0,:]
-            veccross = np.cross(vec13,vec20)
-            volume_tmp = 0.50*veccross*dz
+            # np.cross / np.linalg.norm は 3 要素ベクトルには呼び出し負荷が大きすぎるので成分で書く
+            volume_tmp = ( 0.50*dz*( vec13[1]*vec20[2] - vec13[2]*vec20[1] ), \
+                           0.50*dz*( vec13[2]*vec20[0] - vec13[0]*vec20[2] ), \
+                           0.50*dz*( vec13[0]*vec20[1] - vec13[1]*vec20[0] ) )
             # Reordering
             #if any((x > 0 for x in volume_tmp)) :
             if volume_tmp[2] > 0.0 :
@@ -295,7 +279,9 @@ class meshdata(orbital):
               nodetag_elem_tmp[2] = m2 + 1
               nodetag_elem_tmp[3] = m1 + 1
             # Volume
-            volume_elem[index_l2g_tmp[i][n]] = np.linalg.norm( volume_tmp )
+            volume_elem[index_l2g_tmp[i][n]] = math.sqrt( volume_tmp[0]*volume_tmp[0]     \
+                                                          + volume_tmp[1]*volume_tmp[1]     \
+                                                          + volume_tmp[2]*volume_tmp[2] )
             # Cell center coordinate
             coord_cellcenter_elem[:,index_l2g_tmp[i][n]] = (coord_node[m0,:]+coord_node[m1,:]+coord_node[m2,:]+coord_node[m3,:])*0.25
           else :
@@ -712,6 +698,17 @@ class meshdata(orbital):
     return geom_dict
 
 
+  def get_distance(self, coord_a, coord_b):
+    # Distance between two points
+    # np.linalg.norm は 3 要素ベクトルには呼び出し負荷が大きすぎるので成分で書く
+
+    dx = coord_a[0]-coord_b[0]
+    dy = coord_a[1]-coord_b[1]
+    dz = coord_a[2]-coord_b[2]
+
+    return math.sqrt( dx*dx + dy*dy + dz*dz )
+
+
   def set_metrics(self, meshnode_dict, meshelem_dict, celltmp_list, geom_dict):
 
     # Metrics
@@ -798,13 +795,13 @@ class meshdata(orbital):
       n_cell     = face2cell_inner[0,n_face]
       coord_cell = coord_cellcenter[:,n_cell]
       # Lenght between cell center and face center
-      length[0,n_face] = np.linalg.norm(coord_cell-coord_face)
+      length[0,n_face] = self.get_distance(coord_cell, coord_face)
 
       # Counter cell center
       n_cell     = face2cell_inner[1,n_face]
       coord_cell = coord_cellcenter[:,n_cell]
       # Lenght between cell center and face center
-      length[1,n_face] = np.linalg.norm(coord_cell-coord_face)
+      length[1,n_face] = self.get_distance(coord_cell, coord_face)
 
     # --Boundary faces
     for n_face in range(0,num_face_boundary):
@@ -817,7 +814,7 @@ class meshdata(orbital):
       n_cell     = face2cell_boundary[0,n_face]
       coord_cell = coord_cellcenter[:,n_cell]
       # Lenght between cell center and face center
-      length_boundary[n_face] = np.linalg.norm(coord_cell-coord_face)
+      length_boundary[n_face] = self.get_distance(coord_cell, coord_face)
       
     metrics_dict = { 'area_vec_inner':area_vec, \
                      'area_vec_boundary':area_vec_boundary, \

@@ -42,6 +42,21 @@ All notable changes to this project will be documented in this file.
 - `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループと
   セルごとの時間項（スカラー散逸）
   - 実測: `get_diagonal` が **77 ms --> 0.17 ms（453 倍）**。**ビット一致**
+- メッシュ生成を高速化した。反復側と同じ「3 要素ベクトルに対する numpy / gmsh 呼び出しを
+  Python ループで回している」ことが原因で、次を直した
+  - `gmsh.model.mesh.getNode` の逐次呼び出しを `getNodes()` の一括取得に（167 倍）
+  - `gmsh.model.mesh.getElement` の逐次呼び出し 2 箇所を `getElements(dim, tag)` に（40 倍）。
+    うち 1 箇所は `nodetag_elem_list` に既にある値の取り直しで完全な無駄だった
+  - 要素タイプごとの添字を `np.flatnonzero` で作る（昇順であることが
+    後段のフェイス生成順と LU-SGS の掃引順の前提）
+  - 3 要素ベクトルの `np.cross` を成分計算に、`np.linalg.norm` を `math.sqrt` に
+    （`meshdata.get_distance` に集約）
+  - 実測: ノズル 0.47 --> 0.22 秒、wedge 1.38 --> 0.67 秒、球 0.67 --> 0.26 秒（2.1--2.6 倍）。
+    ノズル格子・外側 5 反復の実行全体では 2.35 --> 1.88 秒
+  - 検証: 4 つの格子すべてで生成された 26 個の配列を比較し、**接続情報と `area_vec` はビット一致**。
+    差は `length_inner` / `length_boundary` / `volume_cell` の最大 1.8e-16 のみ。
+    掃引が依存する面の並びとセルの閉合も 4 格子で確認。`tests/test_rhs_snapshot.py` は通り、
+    デバッグ格子の定常は **205 反復で同一**（収束解の差 1.3e-15）
 - **内側反復の合計が 1,254 ms --> 4.9 ms（256 倍）**（ノズル格子 7,325 セル）。
   実行全体ではノズル格子・外側 5 反復（内部反復 125 回）が **166.8 秒 --> 2.4 秒（約 70 倍）**
   （初回は JIT のコンパイルに約 4.5 秒かかるので 6.9 秒）。解の差は 1.2e-15
