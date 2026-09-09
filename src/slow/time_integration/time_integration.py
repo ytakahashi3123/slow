@@ -5,6 +5,7 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2022/03/25
 
+import logging
 import numpy as np
 from slow.orbital.orbital import orbital
 from slow.time_integration import lusgs
@@ -13,19 +14,21 @@ from slow.time_integration import lusgs_sweep
 from slow.time_integration import update
 from slow.time_integration import explicit_euler
 
+logger = logging.getLogger(__name__)
+
 
 class time_integration(orbital):
 
   def __init__(self):
 
-    print("Calling class: time_integration")
+    logger.info('Calling class: time_integration')
 
     return
 
 
   def initialize_time_integratioin(self, config, dimension_dict, geom_dict):
 
-    print('Setting initial time integration variables')
+    logger.info('Setting initial time integration variables')
 
     num_conserv = dimension_dict['num_conservative']
     num_cell    = geom_dict['num_cell']
@@ -33,7 +36,7 @@ class time_integration(orbital):
     # LU-SGS の散逸の種類に応じて対角の形が変わる
     # --'scalar': セルごとにスカラー、'matrix': セルごとに (num_conserv, num_conserv) ブロック
     kind_dissipation = lusgs.get_kind_dissipation(config)
-    print('--LU-SGS dissipation: ', kind_dissipation)
+    logger.info('--LU-SGS dissipation:  %s', kind_dissipation)
     if kind_dissipation == lusgs.KIND_DISSIPATION_MATRIX :
       var_diagonal = np.zeros((num_conserv, num_conserv, num_cell))
     else :
@@ -87,8 +90,8 @@ class time_integration(orbital):
       var_conserv = explicit_euler.explicit_euler(config, geom_dict, metrics_dict, var_dt, var_rhs, var_conserv)
 
     else:
-      print('Error in kind_time_scheme of control file.', kind_time_scheme)
-      print('Program stopped')
+      logger.info('Error in kind_time_scheme of control file. %s', kind_time_scheme)
+      logger.info('Program stopped')
       exit()
 
     # Primitive variables
@@ -131,7 +134,7 @@ class time_integration(orbital):
     # Check variables
     for n_cell in range(0,num_cell):
       if var_primitiv[0,n_cell] < 0.0 or var_primitiv[4,n_cell] < 0.0 or var_primitiv[5,n_cell] < 0.0 :
-        print( n_cell, coord_cellcenter[0,n_cell], coord_cellcenter[1,n_cell],  var_primitiv[0,n_cell], var_primitiv[4,n_cell], var_primitiv[5,n_cell] )
+        logger.info('%s %s %s %s %s %s', n_cell, coord_cellcenter[0,n_cell], coord_cellcenter[1,n_cell], var_primitiv[0,n_cell], var_primitiv[4,n_cell], var_primitiv[5,n_cell])
         exit()
     #flag_fail = any((x < 0 for x in var_primitiv[4,:]))
 
@@ -164,8 +167,8 @@ class time_integration(orbital):
         for n_cell in range(0,num_cell):
           var_dt[n_cell] = dt_global_tmp
       else:
-        print('Error in kind_time_stepping of control file: ', kind_time_stepping )
-        print('Program stopped')
+        logger.info('Error in kind_time_stepping of control file:  %s', kind_time_stepping)
+        logger.info('Program stopped')
         exit()
 
     elif kind_time_determine == 'dt' :
@@ -174,12 +177,12 @@ class time_integration(orbital):
           var_dt[n_cell] = timestep_constant
 
     else :
-      print('Error in kind_time_fix of control file: ', kind_time_determine )
-      print('Program stopped')
+      logger.info('Error in kind_time_fix of control file:  %s', kind_time_determine)
+      logger.info('Program stopped')
       exit()
 
     # Display
-    print('Maximum time step:', np.max(var_dt), 'Minimum time step:', np.min(var_dt),)
+    logger.info('Maximum time step: %s %s %s', np.max(var_dt), 'Minimum time step:', np.min(var_dt))
 
     return var_dt
 

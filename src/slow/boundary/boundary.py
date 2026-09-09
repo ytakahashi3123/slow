@@ -6,14 +6,17 @@
 # Date; 2022/03/11
 
 
+import logging
 import numpy as np
 from slow.orbital.orbital import orbital
+
+logger = logging.getLogger(__name__)
 
 class boundary(orbital):
 
 
   def __init__(self):
-    print("Calling class: boundary")
+    logger.info('Calling class: boundary')
 
     # not used
     #self.ID_BOUNDARY_FREESTREAM   = 1
@@ -213,7 +216,7 @@ class boundary(orbital):
         var_primitiv_bd[5,n_face] = pressure_tmp 
 
       else:
-        print( 'No boundary ID', 'N_Face:',n_face, 'N_Cell:',n_cell)
+        logger.info('No boundary ID %s %s %s %s', 'N_Face:', n_face, 'N_Cell:', n_cell)
         continue
 
     return var_primitiv_bd

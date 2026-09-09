@@ -5,14 +5,17 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2022/03/07
 
+import logging
 import numpy as np
 from slow.orbital.orbital import orbital
+
+logger = logging.getLogger(__name__)
 
 class flowfield(orbital):
 
 
   def __init__(self):
-    print("Calling class: flowfield")
+    logger.info('Calling class: flowfield')
 
     # gas_property_list
     self.id_specfic_heat_ratio  = 0
@@ -62,7 +65,7 @@ class flowfield(orbital):
     # -- ID2: specific_heat_volum: Specific heat at constant volume [J/K.kg]
     # -- ID3: specific_heat_volum: Specific heat at constant pressure [J/K.kg]
 
-    print('Setting gas properties: specfic heat ratio and gas constant')
+    logger.info('Setting gas properties: specfic heat ratio and gas constant')
 
     specfic_heat_ratio = float( config['gas_properties']['gamma'] )
 
@@ -83,7 +86,7 @@ class flowfield(orbital):
 
   def define_variables(self, config, dimension_dict, geom_dict):
     
-    print('Defining variables ')
+    logger.info('Defining variables ')
 
     num_conserv      = dimension_dict['num_conservative']
     num_primitiv     = dimension_dict['num_primitive']
@@ -131,7 +134,7 @@ class flowfield(orbital):
     # ---- ID4: T: Temperature [K]
     # ---- ID5: p: Pressure [Pa]
 
-    print('Setting initial conditions')
+    logger.info('Setting initial conditions')
 
     flag_initial     = config['computational_setup']['flag_initial']
     kind_steady_mode = config['time_integration']['kind_steady_mode']
@@ -144,7 +147,7 @@ class flowfield(orbital):
 
     if flag_initial :
 
-      print('--from initial condition set in control file')
+      logger.info('--from initial condition set in control file')
 
       iteration = 0
       #coord_cellcenter  = metrics_dict['coord_cellcenter']
@@ -185,7 +188,7 @@ class flowfield(orbital):
 
     else:
 
-      print('--from restart file')
+      logger.info('--from restart file')
 
       # Reading restart data
       iteration, self.sum_rhs_init, var_conserv, var_conserv_prev, \
@@ -197,7 +200,7 @@ class flowfield(orbital):
        var_primitiv[:,n_cell] = self.get_primitive(gas_constant, specific_heat_volum, conserv_tmp)
 
 
-    print('--Interation: ',iteration)
+    logger.info('--Interation:  %s', iteration)
 
     return var_primitiv, var_conserv,  var_conserv_prev, iteration, num_conserv_prev_level
 

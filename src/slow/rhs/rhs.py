@@ -5,23 +5,26 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2022/03/25
 
+import logging
 import numpy as np
 from slow.orbital.orbital import orbital
 from slow.rhs import advection
 from slow.rhs import viscous
 
+logger = logging.getLogger(__name__)
+
 class rhs(orbital):
 
   def __init__(self):
 
-    print("Calling class: rhs")
+    logger.info('Calling class: rhs')
 
     return
 
 
   def initialize_rhs(self, config, dimension_dict, geom_dict):
 
-    print('Setting initial RHS variables')
+    logger.info('Setting initial RHS variables')
 
     num_conserv = dimension_dict['num_conservative']
     num_cell    = geom_dict['num_cell']

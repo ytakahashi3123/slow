@@ -7,7 +7,10 @@
 # Date: 2024/01/31
 
 
+import logging
+
 from slow import __version__
+from slow.general.logging_setup import configure_logging
 from slow.orbital.orbital import orbital as orbital_class
 from slow.meshdata.meshdata import meshdata as meshdata_class
 from slow.flowfield.flowfield import flowfield as flowfield_class
@@ -16,10 +19,16 @@ from slow.gradient.gradient import gradient as gradient_class
 from slow.rhs.rhs import rhs as rhs_class
 from slow.time_integration.time_integration import time_integration as time_integration_class
 
+logger = logging.getLogger(__name__)
+
 
 def main():
 
-  print('Initializing Slow solver, version', __version__)
+  # ログの初期化。既定では標準出力へ素のメッセージだけを出すので、
+  # run_slow.sh のリダイレクトによる log_slow の見た目は従来と同じ
+  configure_logging()
+
+  logger.info('Initializing Slow solver, version %s', __version__)
 
   # Calling classes
   orbital          = orbital_class()
@@ -164,10 +173,10 @@ def main():
       sum_rhs = orbital.display_residual(config, iteration, dimension_dict, var_rhs)
 
 
-      print('Done inner iteration: ', iteration_inner)
+      logger.info('Done inner iteration:  %s', iteration_inner)
 
       if flag_converged_inner :
-        print('Inner iteration converged ', )
+        logger.info('Inner iteration converged ')
         break
 
 
@@ -188,14 +197,14 @@ def main():
     if iteration%frequency_output_postprocess == 0:
       orbital.routine_postprocess(config, iteration, meshnode_dict, meshelem_dict, metrics_dict, gas_property_dict, var_primitiv)
 
-    print('Done iteration: ', iteration)
+    logger.info('Done iteration:  %s', iteration)
 
 
     if kind_steady_mode == 'steady': 
       flag_converged_outer = orbital.check_convergence_outer(config, flag_converged_outer, sum_rhs)
 
       if flag_converged_outer :
-        print('Outer iteration converged ', )
+        logger.info('Outer iteration converged ')
         break
 
 
@@ -204,7 +213,7 @@ def main():
   #orbital.output_tecplot(config, dimension_list, grid_list, geom_dict, iteration, var_primitiv, var_primitiv_bd, var_gradient, var_limiter)
   orbital.routine_postprocess(config, iteration, meshnode_dict, meshelem_dict, metrics_dict, gas_property_dict, var_primitiv)
 
-  print('Finalizing Slow solver')
+  logger.info('Finalizing Slow solver')
 
   return
 

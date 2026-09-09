@@ -3,12 +3,15 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date: 2022/03/31
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class general:
 
   def __init__(self):
-    print("Calling class: general")
+    logger.info('Calling class: general')
 
 # FUnctions
   def argument(self, filename_default):
@@ -25,15 +28,15 @@ class general:
     import sys as sys
     #import pprint as pprint
 
-    print("Reading control file...:", file_control)
+    logger.info('Reading control file...: %s', file_control)
 
     try:
       with open(file_control) as file:
         config = yaml.safe_load(file)
 #        pprint.pprint(config)
     except Exception as e:
-      print('Exception occurred while loading YAML...', file=sys.stderr)
-      print(e, file=sys.stderr)
+      logger.error('Exception occurred while loading YAML...')
+      logger.error('%s', e)
       sys.exit(1)
 
     return config

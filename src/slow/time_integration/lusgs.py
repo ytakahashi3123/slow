@@ -5,6 +5,10 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2026/09/09
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Kind of dissipation used for the LU-SGS implicit operator
 # --'scalar': 0.5*(A-lambda*I)*S。lambda=max(lambda_a,lambda_b) のスカラー散逸
 # --'matrix': 0.5*(A-|A_Roe|)*S。Roe 平均による行列散逸。
@@ -28,9 +32,9 @@ def get_kind_dissipation(config):
                                                           KIND_DISSIPATION_SCALAR) )
 
   if kind_dissipation not in AVAIL_KIND_DISSIPATION:
-    print('Error in kind_lusgs_dissipation of control file: ', kind_dissipation)
-    print('Available: ', ', '.join(AVAIL_KIND_DISSIPATION))
-    print('Program stopped')
+    logger.info('Error in kind_lusgs_dissipation of control file:  %s', kind_dissipation)
+    logger.info('Available:  %s', ', '.join(AVAIL_KIND_DISSIPATION))
+    logger.info('Program stopped')
     exit()
 
   return kind_dissipation
@@ -85,11 +89,11 @@ def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev,
       return diag_time, dq_unst, 0.50
 
     else :
-      print('Error in kind_backward_difference of control file: ', kind_backward_difference )
-      print('Program stopped')
+      logger.info('Error in kind_backward_difference of control file:  %s', kind_backward_difference)
+      logger.info('Program stopped')
       exit()
 
   else :
-    print('Error in kind_steady_mode of control file: ', kind_steady_mode )
-    print('Program stopped')
+    logger.info('Error in kind_steady_mode of control file:  %s', kind_steady_mode)
+    logger.info('Program stopped')
     exit()

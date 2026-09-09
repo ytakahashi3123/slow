@@ -9,15 +9,18 @@
 # "gmsh" package is required
 #
 
+import logging
 import numpy as np
 #from platform import python_version
 from slow.orbital.orbital import orbital
+
+logger = logging.getLogger(__name__)
 
 class meshdata(orbital):
 
   def __init__(self):
 
-    print("Calling class: meshdata")
+    logger.info('Calling class: meshdata')
 
     self.id_2d = 2
     self.id_3d = 3
@@ -136,14 +139,14 @@ class meshdata(orbital):
     # File name
     filename = config['meshdata_io']['filename_mesh']
 
-    print('Reading Gmsh file: ', filename)
+    logger.info('Reading Gmsh file:  %s', filename)
 
     # Start GMSH functions
     gmsh.initialize()
 
     gmsh.open(filename)
 
-    print('Model ' + gmsh.model.getCurrent() + ' (' + str(gmsh.model.getDimension()) + 'D)')
+    logger.info('%s', 'Model ' + gmsh.model.getCurrent() + ' (' + str(gmsh.model.getDimension()) + 'D)')
 
     entities = gmsh.model.getEntities()
     num_node_list   = []
@@ -165,14 +168,14 @@ class meshdata(orbital):
 
     # Dimension
     num_dim = gmsh.model.getDimension()
-    print('Dimension:', num_dim)
+    logger.info('Dimension: %s', num_dim)
 
     # Nodes
-    print('Number of nodes: '   , num_node_list)
-    print('Number of elements: ', num_elem_list)
+    logger.info('Number of nodes:  %s', num_node_list)
+    logger.info('Number of elements:  %s', num_elem_list)
 
     # Node coordinateを取得
-    print('Getting node data...')
+    logger.info('Getting node data...')
     num_node = sum(num_node_list)
     coord_node = np.zeros(num_node*3).reshape(num_node,3)
     dim_node = np.zeros(num_node).reshape(num_node).astype(int)
@@ -188,7 +191,7 @@ class meshdata(orbital):
 
     # Elements情報を取得
     # Types: bar(1) tri(2) quad(3) tet(4) hex(5) prism(6) pyramid(7)
-    print('Getting element data...')
+    logger.info('Getting element data...')
     num_elem       = sum(num_elem_list)
     type_elem      = np.zeros(num_elem).reshape(num_elem).astype(int)
     dim_elem       = np.zeros(num_elem).reshape(num_elem).astype(int)
@@ -241,7 +244,7 @@ class meshdata(orbital):
 
     # Getting Node ID on each element
     # 面積計算がアドホックなので３Dにするときは要注意
-    print('Node ID on each element:')
+    logger.info('Node ID on each element:')
     if num_dim == self.id_2d :
       elem2node_dict = {}
       volume_elem = np.zeros(num_elem).reshape(num_elem)
@@ -303,13 +306,13 @@ class meshdata(orbital):
           elem2node_dict[ index_l2g_tmp[i][n] ] = [int(i) for i in nodetag_elem_tmp]
 
     else :
-      print('3D mesh is NOT implemented yet.')
-      print('Program stopped.')
+      logger.info('3D mesh is NOT implemented yet.')
+      logger.info('Program stopped.')
       exit()
 
 
     # Physical groupの情報を取得
-    print('Getting physical group data...')
+    logger.info('Getting physical group data...')
     physicalTags       = gmsh.model.getPhysicalGroups()
     physicalTags_array = np.array(physicalTags)
     num_physics  = len(physicalTags_array[:,0])
@@ -324,18 +327,18 @@ class meshdata(orbital):
       dim_physics.append( dim_tmp )
       tag_physics.append( tag_tmp )
       name_physics.append( name_tmp )
-      print('Physical group:', '-name', name_tmp, '-dim.', dim_tmp, '-tag.', tag_tmp)
+      logger.info('Physical group: %s %s %s %s %s %s', '-name', name_tmp, '-dim.', dim_tmp, '-tag.', tag_tmp)
     # Tag-->Nameの辞書作成
     tag2name_physics_dict = dict()
     for n in range(0,num_physics) :
       tag2name_physics_dict[tag_physics[n]] = name_physics[n]
-    print('Dictionary of physical tag-->name:', tag2name_physics_dict)
+    logger.info('Dictionary of physical tag-->name: %s', tag2name_physics_dict)
     
     
     # Inner elementとBoundary elementを区別する。
     # 2Dの場合はInner elementタイプはtri(2) quad(3), Boundaryはbar(1)だけのはず
     # 3Dの場合は上記とはことなる（3Dはあとで実装する・・かも）
-    print('Face and cell settings: ', str(num_dim)+'-Dimension case')
+    logger.info('Face and cell settings:  %s', str(num_dim)+'-Dimension case')
     if num_dim == self.id_2d :
 
       # ElementをCellに読み替える
@@ -344,15 +347,15 @@ class meshdata(orbital):
       num_cell_quad = num_elembytype[self.id_type_quad-1]
       num_cell      = num_cell_tri + num_cell_quad
 
-      print('Number of bar cell(?)    : ', num_cell_bar )
-      print('Number of triangle cell  : ', num_cell_tri )
-      print('Number of quadrangle cell: ', num_cell_quad)
-      print('Number of cell           : ', num_cell)
+      logger.info('Number of bar cell(?)    :  %s', num_cell_bar)
+      logger.info('Number of triangle cell  :  %s', num_cell_tri)
+      logger.info('Number of quadrangle cell:  %s', num_cell_quad)
+      logger.info('Number of cell           :  %s', num_cell)
 
 
       # Face-barの数はnum_cell_barと同じ。境界フェイズになる。オーバーラップもないはず
       num_face_bar = num_cell_bar
-      print('Number of boudanry faces : ',num_face_bar)
+      logger.info('Number of boudanry faces :  %s', num_face_bar)
       face2node_boundary = np.zeros(2*num_face_bar).reshape(2,num_face_bar).astype(int)
       face2tag_boundary  = np.zeros(num_face_bar).reshape(num_face_bar).astype(int)
       n_count_bar_tmp = 0
@@ -370,7 +373,7 @@ class meshdata(orbital):
       # フェイスの数(オーバーラップを許す)=(三角形Elementは3辺)+(四角形Elementは4辺)
       # オーバーラップ分はあとで取り除く必要がある
       num_face_overlap = num_cell_tri*3 + num_cell_quad*4
-      print('Number of faces including overlapping faces: ',num_face_overlap)
+      logger.info('Number of faces including overlapping faces:  %s', num_face_overlap)
 
       # 2Dの場合フェイスは線分で構成されているとする。線分には2つのノードがある。
       face2node_overlap = np.zeros(2*num_face_overlap).reshape(2,num_face_overlap).astype(int)
@@ -429,13 +432,13 @@ class meshdata(orbital):
         n_count_face_tmp = n_count_face_tmp + 4
         n_count_cell_tmp = n_count_cell_tmp + 1
 
-      print('Face to node:')
-      print(face2node_overlap)
+      logger.info('Face to node:')
+      logger.info('%s', face2node_overlap)
 
       # Check
       if num_face_overlap != n_count_face_tmp:
-        print('Error. Check meshio.py')
-        print('Program stopped.')
+        logger.info('Error. Check meshio.py')
+        logger.info('Program stopped.')
         exit()
       
       # Version check
@@ -449,7 +452,7 @@ class meshdata(orbital):
       if flag_search_dict:
         # Dict()を使うことで検索の計算量をO(n)にしている。
         # 重複したフェイスの同定-->Dict型で高速化する。
-        print('Finding overlapping nodes (inner)...')
+        logger.info('Finding overlapping nodes (inner)...')
         flag_face_overlapped     = [False]*num_face_overlap
         flag_face_overlapped_opp = [False]*num_face_overlap
         face_opposite_overlapped = [-1]*num_face_overlap
@@ -470,7 +473,7 @@ class meshdata(orbital):
       
         # Boundary faceと隣接セルの同定
         # 0-->隣接セル、1-->Boundary ID
-        print('Finding overlapping nodes (boundary)...')
+        logger.info('Finding overlapping nodes (boundary)...')
         face2cell_boundary = np.zeros(2*num_face_bar).reshape(2,num_face_bar).astype(int)
 
         element_dict = {(face2node_overlap[0, n], face2node_overlap[1, n]): n for n in range(num_face_overlap)}
@@ -494,10 +497,10 @@ class meshdata(orbital):
 
       elif not flag_search_dict :
         # １つ１つ調べ上げる。こちらの処理の計算量は最大でO(n^2)に注意。nは格子数
-        print("Python version is lower than 3.7. The computational cost becomes high.")
+        logger.info('Python version is lower than 3.7. The computational cost becomes high.')
 
         # 重複したフェイスの同定-->さかのぼって地道に調べる
-        print('Finding overlapping nodes (inner)...')
+        logger.info('Finding overlapping nodes (inner)...')
         flag_face_overlapped     = [False]*num_face_overlap
         flag_face_overlapped_opp = [False]*num_face_overlap
         face_opposite_overlapped = [-1]*num_face_overlap
@@ -522,7 +525,7 @@ class meshdata(orbital):
 
         # Boundary faceと隣接セルの同定
         # 0-->隣接セル、1-->Boundary ID
-        print('Finding overlapping nodes (boundary)...')
+        logger.info('Finding overlapping nodes (boundary)...')
         face2cell_boundary = np.zeros(2*num_face_bar).reshape(2,num_face_bar).astype(int)
       #for n in range(0,num_face_overlap) :
       #  # 境界フェイスは重複はしない
@@ -561,21 +564,21 @@ class meshdata(orbital):
           #print('Cell',face2cell_boundary[0,m]+1,'-boundary attribute:',face2cell_boundary[1,m], '-nodes:',node_s0+1, node_s1+1, node_n0+1, node_n1+1)
 
       else :
-        print("Please check meshdata.py")
-        print("Program stopped.")
+        logger.info('Please check meshdata.py')
+        logger.info('Program stopped.')
         exit()
 
 
       # 重複したフェイスの削除
       # --重複していないフェイスの数(Inner face+Boundary face)
       num_face_merge = sum( not flag_tmp for flag_tmp in flag_face_overlapped )
-      print('Number of faces including inner and boundary faces: ', num_face_merge)
+      logger.info('Number of faces including inner and boundary faces:  %s', num_face_merge)
       # -重複していたフェイスの数=Inner faceの数
       num_face_inner = sum( flag_tmp for flag_tmp in flag_face_overlapped )
-      print('Number of inner faces (=number of faces that already overlapped: ', num_face_inner)
+      logger.info('Number of inner faces (=number of faces that already overlapped:  %s', num_face_inner)
       # -重複していないフェイスの数から重複していたフェイスの数を差し引くと、Boundary faceの数となる
       num_face_boundary = num_face_merge - num_face_inner
-      print('Number of boundary faces: ', num_face_boundary)
+      logger.info('Number of boundary faces:  %s', num_face_boundary)
 
       face2node_inner = np.zeros(2*num_face_inner).reshape(2,num_face_inner).astype(int)
       face2cell_inner = np.zeros(2*num_face_inner).reshape(2,num_face_inner).astype(int)
@@ -598,17 +601,17 @@ class meshdata(orbital):
 
       # Check
       if num_face_inner != n_count_face_tmp:
-        print('Error. Check meshio.py: (number of inner face)')
-        print('Program stopped.')
+        logger.info('Error. Check meshio.py: (number of inner face)')
+        logger.info('Program stopped.')
         exit()
       if num_face_bar != num_face_boundary:
-        print('Error. Check meshio.py: (number of boundary face)')
-        print('Program stopped.')
+        logger.info('Error. Check meshio.py: (number of boundary face)')
+        logger.info('Program stopped.')
         exit()
 
     else :
-      print('3D mesh is NOT implemented yet.')
-      print('Program stopped.')
+      logger.info('3D mesh is NOT implemented yet.')
+      logger.info('Program stopped.')
       exit()
 
     meshnode_dict   = { 'num_dim':num_dim,   \
@@ -639,7 +642,7 @@ class meshdata(orbital):
 
     # Virtual cells identification on boundary
 
-    print('Setting virtual-cell on boundary...')
+    logger.info('Setting virtual-cell on boundary...')
 
     num_face_boundary  = facecell_list[1]
     face2cell_boundary = facecell_list[6]
@@ -671,8 +674,8 @@ class meshdata(orbital):
       elif bd_kind == self.KIND_BOUNDARY_AMBIENT :
         virtualcell_boundary[n_face] = 1
       else:
-        print( 'No boundary ID', 'N_Face:',n_face)
-        print( 'Check boundary condition. Program stopped')
+        logger.info('No boundary ID %s %s', 'N_Face:', n_face)
+        logger.info('Check boundary condition. Program stopped')
         exit()
 
     return virtualcell_boundary
@@ -680,7 +683,7 @@ class meshdata(orbital):
 
   def set_geometry(self, facecell_list, virtualcell_boundary):
 
-    print('Setting geometry data...')
+    logger.info('Setting geometry data...')
 
     num_face_inner     = facecell_list[0]
     num_face_boundary  = facecell_list[1]
@@ -713,7 +716,7 @@ class meshdata(orbital):
 
     # Metrics
     # Calculate area vectors
-    print( 'Setting metrics...' )
+    logger.info('Setting metrics...')
 
     num_dim    = meshnode_dict['num_dim']
     num_node   = meshnode_dict['num_node']
@@ -732,7 +735,7 @@ class meshdata(orbital):
 
     dz = 1.0
 
-    print('--Calculate area and normal vectors...')
+    logger.info('--Calculate area and normal vectors...')
 
     # Area vector
     area_vec          = np.zeros(10*num_face_inner).reshape(10,num_face_inner)
@@ -778,7 +781,7 @@ class meshdata(orbital):
 
 
     # Lengths between face center and cell center
-    print('--Calculate lengths...')
+    logger.info('--Calculate lengths...')
     # lenght[0,:]-->自分自身を構成するセル側への距離
     # lenght[1,:]-->隣のセル側への距離
     length          = np.zeros(2*num_face_inner).reshape(2,num_face_inner)

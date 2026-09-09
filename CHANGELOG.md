@@ -20,6 +20,17 @@ All notable changes to this project will be documented in this file.
     相対／絶対の判定が両者で同じ向きであることも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
+- `src/slow/general/logging_setup.py` ログ出力を `logging` に統一した（`print` を全廃）
+  - `configure_logging(level, stream, filename, fmt)` で初期化する。`cli.py:main()` の先頭で呼ぶ
+  - 既定は標準出力へ素のメッセージのみ（書式 `%(message)s`）。レベル名や時刻を付けないのは、
+    `run_slow.sh` のリダイレクトで得られる `log_slow` の見た目を従来と変えないため
+  - 各モジュールは `logger = logging.getLogger(__name__)` を使う。`slow` 以下に集約されるので
+    `logging.getLogger('slow').setLevel(...)` で一括制御できる。ライブラリとして組み込むときに
+    アプリ側の設定へ干渉しないよう `propagate = False` にしてある
+  - 検証: デバッグ格子 5 反復の `log_slow` から gmsh 自身の `Info` 行を除いた
+    ソルバ側の出力 174 行が変更前と完全一致。`output_restart` と VTK もビット一致。
+    gmsh の `Info` 行との並び順のみ変わる（従来は `print` がブロックバッファされて
+    Python 側の出力が後回しになっていた。内容は同一）
 - `ruff` を linter として導入した（`pyproject.toml` の `[tool.ruff]`、`requirements-dev.txt`）。
   実バグや取り違えを拾う規則だけを選び (`E4,E7,E9,F,B,PLE`)、体裁を整えるだけの規則は入れていない。
   `ruff format` は既存コードには掛けない: このコードベースは代入の桁揃えと行継続を手で整えており、

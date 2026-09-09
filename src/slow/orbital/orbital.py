@@ -3,10 +3,13 @@
 # Author: Y.Takahashi, Hokkaido University
 # Date: 2022/03/21
 
+import logging
 import numpy as np
 import time as time
 from functools import wraps
 from slow.general.general import general
+
+logger = logging.getLogger(__name__)
 
 class orbital(general):
 
@@ -30,7 +33,7 @@ class orbital(general):
 
   
   def __init__(self):
-    print("Calling class: orbital")
+    logger.info('Calling class: orbital')
 
     return
 
@@ -40,7 +43,7 @@ class orbital(general):
     # -- Conservative variables (rho, rho*u, rho*v, rho*w, E)
     # -- Primitive variables (rho, u, v, w, T, p)
 
-    print("Setting dimensions of variables")
+    logger.info('Setting dimensions of variables')
 
     num_conserv  = 5
     num_primitiv = 6
@@ -53,7 +56,7 @@ class orbital(general):
 
   def set_orbital_parameters(self, dimension_dict):
 
-    print("Setting orbital variables")
+    logger.info('Setting orbital variables')
 
     num_conserv = dimension_dict['num_conservative']
 
@@ -66,7 +69,7 @@ class orbital(general):
 
   def write_tecplotdata( self, filename, print_message, header, delimiter, comments, output_data ):
     
-    print(print_message,':',filename)
+    logger.info('%s %s %s', print_message, ':', filename)
     np.savetxt(filename, output_data, header=header, delimiter=delimiter, comments=comments )
 
     return
@@ -147,7 +150,7 @@ class orbital(general):
   def make_directory_output(self, config):
     # Make directory
 
-    print('Making directories for output...')
+    logger.info('Making directories for output...')
 
     dir_restart  = config['restart_process']['directory_output']
     self.make_directory(dir_restart)
@@ -499,7 +502,7 @@ class orbital(general):
       flag_vector_output = False
 
 
-    print('Writing VTK file: ', filename_tmp)
+    logger.info('Writing VTK file:  %s', filename_tmp)
     # File open  
     file = open(filename_tmp, "w")
 
@@ -602,7 +605,7 @@ class orbital(general):
 
     num_conserv = dimension_dict['num_conservative']
     sum_rhs = np.sum(var_rhs**2,axis=1)
-    print('Residuals: ', [sum_rhs[m] for m in range(0,num_conserv)])
+    logger.info('Residuals:  %s', [sum_rhs[m] for m in range(0,num_conserv)])
     if iteration == 0:
       self.sum_rhs_init = sum_rhs
 
@@ -617,7 +620,7 @@ class orbital(general):
 
     num_conserv = dimension_dict['num_conservative']
     sum_dq  = np.sum(var_dq**2, axis=1)
-    print('Delta Q  : ', [sum_dq[m] for m in range(0,num_conserv)])
+    logger.info('Delta Q  :  %s', [sum_dq[m] for m in range(0,num_conserv)])
     if iteration_inner == 0:
       self.sum_dq_init = sum_dq
 
@@ -636,7 +639,7 @@ class orbital(general):
         start_time = time.time()
         result = func(*args,**kargs)
         elapsed_time = time.time() - start_time
-        print('Elapsed time of '+str(func.__name__)+str(':'),elapsed_time,'s')
+        logger.info('%s %s %s', 'Elapsed time of '+str(func.__name__)+str(':'), elapsed_time, 's')
       else :
         result = func(*args,**kargs)
       return result 
