@@ -22,9 +22,6 @@ All notable changes to this project will be documented in this file.
     多い最小の格子（正方形セル 2 個、内部面 1 枚・境界面 6 枚）を組み、境界ループが動くことと、
     線形場に対して勾配が厳密に再現されることを固定する。境界の重みが距離に依らないことも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
-- `docs/performance.md` 実行速度の実測と高速化の方針をまとめた。ルーチンごとの内訳、
-  「この粒度では numpy は何も買っていない」ことの実測、採った方針（スカラーループのまま
-  numba でコンパイル）と採らなかった方針（面方向のベクトル化）の比較、進捗表
 - `src/slow/general/jit.py` 面ループ・セルループを numba でコンパイルする `kernel` デコレータ。
   numba は**任意依存**で、無ければ恒等デコレータになるので挙動は変わらず速度だけが変わる
   （`pip install -e ".[fast]"` で入る。`SLOW_DISABLE_NUMBA=1` で明示的に切れる）
@@ -94,14 +91,6 @@ All notable changes to this project will be documented in this file.
   - 実測（ノズル格子 7,325 セル）: `get_gradient` が **122 ms --> 0.24 ms（508 倍）**。
     numba を切ると 122 ms で従来どおり。**どちらもビット一致**するので、
     スナップショット回帰もビット比較もそのまま使える
-- `docs/verification.md` 数値部分の検証方法をまとめた。実際に使って有効だった 7 つの型
-  （複素ステップ微分による解析的恒等式、陰解演算子を密行列に組み直しての突き合わせ、
-  故意にバグを入れてテストの検出力を確かめる、時間精度の次数測定、前後のビット比較、
-  幾何・離散化の恒等式、異常系の挙動確認）と、それぞれで実際に見つかった不具合、
-  および踏んだ落とし穴を記録している。検証していない範囲も明記した。
-  `README.md` から参照する。開発者向けメモには「変更した箇所に応じてどの方法を使うか」の
-  対応表と、実務上の要点（複素ステップ微分、密行列との突き合わせ、変異テストの落とし穴、
-  次数の推移の見方、ビット比較の注意）を独立した節として置いた
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `src/slow/general/history.py` 残差の履歴を CSV で出力するようにした（`output_result/history.csv`）
   - 列は `iteration, iteration_inner, residual_{rho,momx,momy,momz,energy},

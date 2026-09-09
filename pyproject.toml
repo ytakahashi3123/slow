@@ -50,7 +50,6 @@ select = ["E4", "E7", "E9", "F", "B", "PLE"]
 ignore = [
   # 関数の先頭で dict から一括展開する定型と、3 次元化のために残している
   # プレースホルダ（wvel, vecz, flux_tmp4 など）を消させないため。
-  # 開発者向けメモの「Do not simplify it away」に対応する
   "F841",
   # `except KeyError` などに絞れない箇所が残っているが、意図的に広く捕まえている
   "B904",
