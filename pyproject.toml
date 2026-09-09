@@ -21,6 +21,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "ruff>=0.6"]
+# 面ループ・セルループを numba でコンパイルする。無くても動く（遅いだけ）
+fast = ["numba>=0.59"]
 
 [project.scripts]
 slow = "slow.cli:main"

@@ -11,6 +11,7 @@ import logging
 
 from slow import __version__
 from slow.general import history
+from slow.general import jit
 from slow.general.logging_setup import configure_logging
 from slow.orbital.orbital import orbital as orbital_class
 from slow.meshdata.meshdata import meshdata as meshdata_class
@@ -30,6 +31,7 @@ def main():
   configure_logging()
 
   logger.info('Initializing Slow solver, version %s', __version__)
+  logger.info('--%s', jit.describe())
 
   # Calling classes
   orbital          = orbital_class()

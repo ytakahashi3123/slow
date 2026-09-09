@@ -127,12 +127,13 @@ def make_state(geom_dict, coord_cell, coord_face_bd):
 
 
 def run_gradient(geom_dict, metrics_dict, var_primitiv, var_primitiv_bd):
-  # get_gradient は config も dimension_dict も参照しないので最小の辞書で足りる
+  # get_gradient は config を参照しないので、辞書は dimension_dict だけ与えれば足りる
 
   gradient_obj = gradient()
   var_gradient = np.zeros((NUM_SPATIAL, NUM_PRIMITIV, geom_dict['num_cell']))
 
-  return gradient_obj.get_gradient({}, {}, geom_dict, metrics_dict, \
+  return gradient_obj.get_gradient({}, {'num_primitive': NUM_PRIMITIV}, \
+                                   geom_dict, metrics_dict, \
                                    var_primitiv, var_primitiv_bd, var_gradient)
 
 

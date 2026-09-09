@@ -7,6 +7,7 @@
 
 import logging
 import numpy as np
+from slow.gradient import gradient_kernel
 from slow.orbital.orbital import orbital
 
 logger = logging.getLogger(__name__)
@@ -84,13 +85,16 @@ class gradient(orbital):
   @orbital.time_measurement_decorated
   def get_gradient(self, config, dimension_dict, geom_dict, metrics_dict, var_primitiv, var_primitiv_bd, var_gradient):
 
+    # 面ループの本体は gradient_kernel に置いてある（numba を掛けるため、
+    # 配列とスカラーだけを引数に取る素の関数にしてある）
+
+    num_primitiv   = dimension_dict['num_primitive']
+
     num_face       = geom_dict['num_face_inner']
     num_face_bd    = geom_dict['num_face_boundary']
     num_cell       = geom_dict['num_cell']
     face2cell      = geom_dict['face2cell_inner']
-    #face2node_bd   = geom_list[5]
     face2cell_bd   = geom_dict['face2cell_boundary']
-    #cell2node      = geom_dict[7]
     virtualcell_bd = geom_dict['virtualcell_boundary']
 
     area_vec    = metrics_dict['area_vec_inner']
@@ -99,53 +103,11 @@ class gradient(orbital):
     length_bd   = metrics_dict['length_boundary']
     volume      = metrics_dict['volume_cell']
 
-    # Initialize
-    var_gradient[:,:,:] = 0.0
-
-    # --Inner loop
-    fact_m = 0.5
-    fact_p = 0.5
-    for n_face in range(0,num_face):
-      n_cell_self = face2cell[0,n_face]
-      n_cell_neig = face2cell[1,n_face]
-      area   = area_vec[0,n_face]
-      vec_x  = area*area_vec[1,n_face]
-      vec_y  = area*area_vec[2,n_face]
-      dl_s   = length[0,n_face]
-      dl_n   = length[1,n_face]
-      fact_m = dl_s/(dl_s+dl_n)
-      fact_p = dl_n/(dl_s+dl_n)
-      var_face = fact_p*var_primitiv[:,n_cell_self] + fact_m*var_primitiv[:,n_cell_neig]
-      var_gradient[0,:,n_cell_self] = var_gradient[0,:,n_cell_self] - var_face*vec_x
-      var_gradient[1,:,n_cell_self] = var_gradient[1,:,n_cell_self] - var_face*vec_y
-      var_gradient[0,:,n_cell_neig] = var_gradient[0,:,n_cell_neig] + var_face*vec_x
-      var_gradient[1,:,n_cell_neig] = var_gradient[1,:,n_cell_neig] + var_face*vec_y
-
-    # --Boundaryr loop
-    fact_m = 0.5
-    fact_p = 0.5
-    for n_face in range(0,num_face_bd):
-      n_cell_self = face2cell_bd[0,n_face]
-      area        = area_vec_bd[0,n_face]
-      vec_x       = area*area_vec_bd[1,n_face]
-      vec_y       = area*area_vec_bd[2,n_face]
-      # 境界面なので境界面用の距離を使う（内部面用の length は
-      #  2 x num_face_inner なので num_face_boundary > num_face_inner で添字が溢れる）
-      # なお重みは dl_n = dl_s*vcell なので dl_s が約分され、仮想セルの有無だけで決まる
-      dl_s   = length_bd[n_face]
-      dl_n   = length_bd[n_face]*float(virtualcell_bd[n_face])
-      fact_m = dl_s/(dl_s+dl_n)
-      fact_p = dl_n/(dl_s+dl_n)
-      var_face = fact_p*var_primitiv[:,n_cell_self]+fact_m*var_primitiv_bd[:,n_face]
-      var_gradient[0,:,n_cell_self] = var_gradient[0,:,n_cell_self] - var_face*vec_x
-      var_gradient[1,:,n_cell_self] = var_gradient[1,:,n_cell_self] - var_face*vec_y
-
-
-    for n_cell in range(0,num_cell):
-      inv_volume = 1.0/volume[n_cell]
-      var_gradient[0,:,n_cell] = var_gradient[0,:,n_cell]*inv_volume
-      var_gradient[1,:,n_cell] = var_gradient[1,:,n_cell]*inv_volume
-
+    var_gradient = gradient_kernel.accumulate_gradient(
+                     num_face, num_face_bd, num_cell, num_primitiv,
+                     face2cell, face2cell_bd, virtualcell_bd,
+                     area_vec, area_vec_bd, length, length_bd, volume,
+                     var_primitiv, var_primitiv_bd, var_gradient)
 
     return var_gradient
 
