@@ -3,9 +3,8 @@
 # Program to verify the maximum eigenvalue used by the LU-SGS operator
 #
 # lambda=|u.n|+c+2*mu/(rho*d) の式は lusgs_diagonal（対角項）と lusgs_sweep（非対角項）
-# の双方が time_integration/eigenvalue.py を共有して使う。式を書き換えると
+# の双方が general/thermodynamics.py を共有して使う。式を書き換えると
 # LU-SGS の陰解演算子が変わるので、定義そのものをここで固定する。
-# （両者が渡す状態は異なる。理由は eigenvalue.py の docstring を参照）
 
 # Author: Y.Takahashi, Hokkaido University
 # Date; 2026/09/09
@@ -14,7 +13,7 @@ import math
 
 import pytest
 
-from slow.time_integration.eigenvalue import get_max_eigenvalue
+from slow.general.thermodynamics import get_max_eigenvalue
 
 
 SPECIFIC_HEAT_RATIO = 1.40

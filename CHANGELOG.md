@@ -220,6 +220,11 @@ All notable changes to this project will be documented in this file.
   残差は厳密なので収束後の解は変わらないが、内部反復の収束が遅くなっていた（超音速ノズル計算で減衰率が 1.1--1.3 倍改善）
 
 ### Removed
+- `src/slow/time_integration/eigenvalue.py` 最大固有値の式を
+  `src/slow/general/thermodynamics.py` に一本化したため削除。
+  カーネルから呼べる必要があり（`orbital.get_speedofsound` を呼んでいたため numba に
+  掛けられなかった）、同じ式を 2 箇所に置く状態を避けた。
+  `tests/test_eigenvalue.py` の参照先を差し替えてある
 - デッドコードを削除した。いずれも実行経路から外れており、削除前後でデバッグ格子の
   `log_slow` / `output_restart` / VTK がビット一致することを 6 通りの設定で確認済み
   （scalar/matrix、定常/非定常、explicit_euler、slau2/haenel、GG+制限関数なし）

@@ -45,7 +45,9 @@ def get_max_eigenvalue(specfic_heat_ratio, dens, uvel, vvel, wvel, pres,
   非粘性では固有値が |u.n|+c, |u.n|-c, |u.n| なので最大値は |u.n|+c となる。
   これに粘性の寄与 2*mu/(rho*d) を加える。lambda は |u.n| を用いるため法線の向きには依らない。
 
-  time_integration/eigenvalue.py と同じ式で、こちらはカーネルから呼ぶための版。
+  対角項 (lusgs_diagonal) と非対角項 (lusgs_sweep) の双方がこの関数を共有する。
+  なお面上の「平均」状態で lambda を評価する案は、ノズル・球の両ケース、CFL 2.5/50 の
+  いずれでも内部反復の減衰が 0--3% 悪化したため採っていない（衝撃波近傍で散逸が不足する）。
   """
 
   cvel = uvel*vecx + vvel*vecy + wvel*vecz

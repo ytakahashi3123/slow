@@ -14,7 +14,6 @@ import pytest
 
 from slow.general import thermodynamics
 from slow.orbital.orbital import orbital
-from slow.time_integration import eigenvalue as eigenvalue_mod
 
 
 # 検査する状態の範囲。密度と圧力は数桁にわたらせる
@@ -57,19 +56,6 @@ def test_enthalpy_matches_the_orbital_method():
                                     [vel[0,n], vel[1,n], vel[2,n]], pres[n])
     actual   = thermodynamics.get_enthalpy(SPECIFIC_HEAT_VOLUM, dens[n], temp[n],
                                            vel[0,n], vel[1,n], vel[2,n], pres[n])
-    assert actual == expected, f'sample {n}: {actual!r} != {expected!r}'
-
-
-def test_max_eigenvalue_matches_the_existing_module():
-  dens, pres, _, vel, visc, leng, vec = make_states()
-
-  for n in range(0, NUM_SAMPLE):
-    expected = eigenvalue_mod.get_max_eigenvalue(SPECIFIC_HEAT_RATIO, dens[n],
-                                                 vel[0,n], vel[1,n], vel[2,n], pres[n],
-                                                 visc[n], leng[n], vec[0,n], vec[1,n], vec[2,n])
-    actual   = thermodynamics.get_max_eigenvalue(SPECIFIC_HEAT_RATIO, dens[n],
-                                                 vel[0,n], vel[1,n], vel[2,n], pres[n],
-                                                 visc[n], leng[n], vec[0,n], vec[1,n], vec[2,n])
     assert actual == expected, f'sample {n}: {actual!r} != {expected!r}'
 
 
