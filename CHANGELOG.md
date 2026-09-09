@@ -143,6 +143,16 @@ All notable changes to this project will be documented in this file.
     （いずれも流れ場が発達するほど効果が大きい）。差し引きで有利
 
 ### Changed
+- `config.yml` の `lusgs_beta` と `kind_lusgs_dissipation` に注意書きを追加した。
+  `matrix` を**定常計算**で使うとき、格子・条件によっては既定の `lusgs_beta`
+  (1.01--1.1) で残差が下がったあと再上昇する。そのときは 2.0 程度まで上げる
+  - 実測: chimera 格子は反復 78 から再上昇（`beta: 2.0` で 230 反復・残差 5.9e1 まで収束、
+    `scalar` の 5.4e1 と同水準）、ノズル格子は反復 73 から再上昇（`beta: 2.0` で単調）。
+    一方 **wedge 格子では既定値でも単調で `scalar` より速い**（300 反復で 1.5e12 対 2.9e12）
+  - 定常では内部反復が 1 回に固定されるので 1 回の掃引の質がそのまま解の質になり、
+    `scalar` の対角が持つ余剰の重み（`lambda` が全固有値の絶対値を過大に見積もる分）を
+    `matrix` では `beta` で補う必要がある。非定常では対角が時間項に支配され影響しない
+  - `lusgs_beta` が定常計算のときだけ効くことも明記した
 - セルごとに同じ式を当てるだけのループを、素の numpy の配列演算に書き換えた。
   面ループと違ってカーネルにする必要が無く、1 行で書けて読みやすい
   - `time_integration/update.py` --> `var_conserv += var_dq`（6.8 ms --> ~0）
