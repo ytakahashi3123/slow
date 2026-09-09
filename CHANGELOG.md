@@ -40,6 +40,12 @@ All notable changes to this project will be documented in this file.
     スイープは残差に影響しないので、収束の振る舞いで検証した:
     デバッグ格子の定常は **205 反復で同一**（収束解の差 1.2e-15、最終残差は 7 桁一致）、
     非定常 BDF2 は **内部反復の総数 40 で同一**（`Delta Q` の差 1.4e-15）
+- `src/slow/gradient/gradient_kernel.py` に minmod 制限関数と隣接セル最大・最小の
+  面ループも切り出した
+  - 実測: `get_slopelimiter` が **259 ms --> 0.94 ms（276 倍）**。**ビット一致**
+  - numba を切った経路ではこの部分が 261 --> 320 ms と約 23% 遅くなる。
+    元は 6 要素スライスに対する `np.maximum` / `np.minimum` で、そこは numpy が
+    有利だった箇所（1 回の呼び出しで複数要素を畳み込める）。結果はビット一致する
 - `src/slow/gradient/gradient_kernel.py` Green-Gauss 勾配の面ループを、配列とスカラーだけを
   引数に取る素の関数として切り出した。ループの形は元のままで、原始変数についての内側ループを
   明示的に書いてある（6 要素の numpy スライスはスカラー演算より遅く、numba も掛けられない）

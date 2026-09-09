@@ -138,109 +138,18 @@ class gradient(orbital):
     length      = metrics_dict['length_inner']
     length_bd   = metrics_dict['length_boundary']
 
-    # Initialize
-    var_limiter[:,:] = 1.0
-    #grad_face = np.zeros(num_primitiv).reshape(num_primitiv)
-    #grad_face_sign = np.zeros(num_primitiv).reshape(num_primitiv)
-    #del_face = np.zeros(num_primitiv).reshape(num_primitiv)
-
-    # Searching maximum and minimum variables on neigboring cell
-    var_neig_maxmin[0,:,:] = var_primitiv[:,:]
-    var_neig_maxmin[1,:,:] = var_primitiv[:,:]
-    for n_face in range(0,num_face):
-      n_cell_self = face2cell[0,n_face]
-      n_cell_neig = face2cell[1,n_face]
-      #var_neig_maxmin[0,:,n_cell_self] = [max(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) for m in range(num_primitiv)]
-      #var_neig_maxmin[0,:,n_cell_neig] = [max(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) for m in range(num_primitiv)]
-      #var_neig_maxmin[1,:,n_cell_self] = [min(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) for m in range(num_primitiv)]
-      #var_neig_maxmin[1,:,n_cell_neig] = [min(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) for m in range(num_primitiv)]
-      var_neig_maxmin[0, :, n_cell_self] = np.maximum(var_neig_maxmin[0, :, n_cell_self], var_primitiv[:, n_cell_neig])
-      var_neig_maxmin[0, :, n_cell_neig] = np.maximum(var_neig_maxmin[0, :, n_cell_neig], var_primitiv[:, n_cell_self])
-      var_neig_maxmin[1, :, n_cell_self] = np.minimum(var_neig_maxmin[1, :, n_cell_self], var_primitiv[:, n_cell_neig])
-      var_neig_maxmin[1, :, n_cell_neig] = np.minimum(var_neig_maxmin[1, :, n_cell_neig], var_primitiv[:, n_cell_self])
-      #for m in range(0,num_primitiv):
-      #  var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
-      #  var_neig_maxmin[0,m,n_cell_neig] = max(var_neig_maxmin[0,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
-      #  var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv[m,n_cell_neig]) 
-      #  var_neig_maxmin[1,m,n_cell_neig] = min(var_neig_maxmin[1,m,n_cell_neig], var_primitiv[m,n_cell_self]) 
-    for n_face in range(0,num_face_bd):
-      n_cell_self = face2cell_bd[0,n_face]
-      var_neig_maxmin[0, :, n_cell_self] = np.maximum(var_neig_maxmin[0, :, n_cell_self], var_primitiv_bd[:, n_face])
-      var_neig_maxmin[1, :, n_cell_self] = np.minimum(var_neig_maxmin[1, :, n_cell_self], var_primitiv_bd[:, n_face])
-      #for m in range(0,num_primitiv):
-      #  var_neig_maxmin[0,m,n_cell_self] = max(var_neig_maxmin[0,m,n_cell_self], var_primitiv_bd[m,n_face]) 
-      #  var_neig_maxmin[1,m,n_cell_self] = min(var_neig_maxmin[1,m,n_cell_self], var_primitiv_bd[m,n_face]) 
-
+    # 隣接セルの最大・最小と minmod の面ループは gradient_kernel に置いてある
+    var_neig_maxmin = gradient_kernel.find_neighbour_maxmin(
+                        num_face, num_face_bd, num_primitiv,
+                        face2cell, face2cell_bd,
+                        var_primitiv, var_primitiv_bd, var_neig_maxmin)
 
     if kind_limiter == 'minmod' :
-      # Inner faces
-      for n_face in range(0,num_face):
-        n_cell_self = face2cell[0,n_face]
-        n_cell_neig = face2cell[1,n_face]    
-        dl_s   = length[0,n_face]
-        dl_n   = length[1,n_face]
-        vec_x  = area_vec[1,n_face]*(dl_s+dl_n)
-        vec_y  = area_vec[2,n_face]*(dl_s+dl_n)
-        vec_z  = area_vec[3,n_face]*(dl_s+dl_n)
-
-        # Slope limiter
-        for m in range(0,num_primitiv):
-          # --selfside cell
-          grad_face =-(var_gradient[0,m,n_cell_self]*vec_x+var_gradient[1,m,n_cell_self]*vec_y+var_gradient[2,m,n_cell_self]*vec_z)
-          if grad_face >= 0.0:
-            grad_face = grad_face + 1.e-20
-            del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          else :
-            grad_face = grad_face - 1.e-20
-            del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          #if grad_face >= 0.0:
-          #  del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          #else :
-          #  del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
-          var_limiter[m,n_cell_self] = min(var_limiter[m,n_cell_self], del_face)
-          #var_limiter[m,n_cell_self] = np.minimum(var_limiter[m, n_cell_self], del_face)
-
-          # --neigboring side cell
-          grad_face = (var_gradient[0,m,n_cell_neig]*vec_x+var_gradient[1,m,n_cell_neig]*vec_y+var_gradient[2,m,n_cell_neig]*vec_z)
-          if grad_face >= 0.0:
-            grad_face = grad_face + 1.e-20
-            del_face  = var_neig_maxmin[0,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
-          else :
-            grad_face = grad_face - 1.e-20
-            del_face  = var_neig_maxmin[1,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
-          #if grad_face >= 0.0:
-          #  del_face  = var_neig_maxmin[0,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
-          #else :
-          #  del_face  = var_neig_maxmin[1,m,n_cell_neig] - var_primitiv[m,n_cell_neig]
-          del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
-          var_limiter[m,n_cell_neig] = min(var_limiter[m,n_cell_neig], del_face)
-          #var_limiter[m, n_cell_neig] = np.minimum(var_limiter[m, n_cell_neig], del_face)
-
-      # Boundary faces
-      for n_face in range(0,num_face_bd):
-        n_cell_self = face2cell_bd[0,n_face] 
-        dl_s   = length_bd[n_face]
-        dl_n   = length_bd[n_face]*float(virtualcell_bd[n_face])
-        vec_x  = area_vec_bd[1,n_face]*(dl_s+dl_n)
-        vec_y  = area_vec_bd[2,n_face]*(dl_s+dl_n)
-        vec_z  = area_vec_bd[3,n_face]*(dl_s+dl_n)
-
-        # Slope limiter
-        for m in range(0,num_primitiv):
-          grad_face =-(var_gradient[0,m,n_cell_self]*vec_x+var_gradient[1,m,n_cell_self]*vec_y+var_gradient[2,m,n_cell_self]*vec_z)
-          if grad_face >= 0.0:
-            grad_face = grad_face + 1.e-20
-            del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          else :
-            grad_face = grad_face - 1.e-20
-            del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          #if grad_face >= 0.0:
-          #  del_face  = var_neig_maxmin[0,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          #else :
-          #  del_face  = var_neig_maxmin[1,m,n_cell_self] - var_primitiv[m,n_cell_self]
-          del_face  =  max( 0.0, min(1.0, del_face/grad_face) )
-          var_limiter[m,n_cell_self] = min(var_limiter[m,n_cell_self], del_face)
+      var_limiter = gradient_kernel.apply_minmod_limiter(
+                      num_face, num_face_bd, num_primitiv,
+                      face2cell, face2cell_bd, virtualcell_bd,
+                      area_vec, area_vec_bd, length, length_bd,
+                      var_primitiv, var_gradient, var_neig_maxmin, var_limiter)
 
     elif kind_limiter == 'none' :
       var_limiter[:,:] = 1.0
