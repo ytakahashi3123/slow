@@ -64,6 +64,8 @@ class time_integration(orbital):
 
     kind_time_scheme = config['time_integration']['kind_time_scheme']
     flag_converged_inner = False
+    # delta Q を持たないスキーム (explicit_euler) では None のまま返す
+    sum_dq = None
 
     if kind_time_scheme == 'implicit_lusgs':
     # Implicit scheme by LUSGS
@@ -97,7 +99,7 @@ class time_integration(orbital):
     # Primitive variables
     var_primitiv = self.update_primitive(config, geom_dict, metrics_dict, gas_property_dict, var_conserv, var_primitiv)
 
-    return var_conserv, var_primitiv, flag_converged_inner
+    return var_conserv, var_primitiv, flag_converged_inner, sum_dq
 
   @orbital.time_measurement_decorated
   def set_conservative_previous(self, config, var_conserv, var_conserv_prev, num_conserv_prev_level=lusgs.NUM_PREV_LEVEL_REQUIRED_BDF2):

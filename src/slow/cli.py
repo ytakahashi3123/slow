@@ -10,6 +10,7 @@
 import logging
 
 from slow import __version__
+from slow.general import history
 from slow.general.logging_setup import configure_logging
 from slow.orbital.orbital import orbital as orbital_class
 from slow.meshdata.meshdata import meshdata as meshdata_class
@@ -99,6 +100,9 @@ def main():
   # Initialize LUSGS variables
   var_diagonal, var_dq, var_dt, character_time = time_integration.initialize_time_integratioin(config, dimension_dict, geom_dict)
 
+  # Open the residual history file (machine-readable counterpart of the log)
+  file_history = history.open_history(config, dimension_dict)
+
 
   # Computational parameters
   iteration_maximum            = config['computational_setup']['iteration_maximum']
@@ -151,7 +155,8 @@ def main():
       # Time integration and update solution
       var_conserv, \
       var_primitiv, \
-      flag_converged_inner = time_integration.time_integration_routine(config, \
+      flag_converged_inner, \
+      sum_dq = time_integration.time_integration_routine(config, \
                                                                        iteration_inner, \
                                                                        dimension_dict, \
                                                                        geom_dict, \
@@ -171,6 +176,7 @@ def main():
 
       # Residuals
       sum_rhs = orbital.display_residual(config, iteration, dimension_dict, var_rhs)
+      history.write_history(file_history, iteration, iteration_inner, sum_rhs, sum_dq)
 
 
       logger.info('Done inner iteration:  %s', iteration_inner)
@@ -209,6 +215,7 @@ def main():
 
 
   # Final results
+  history.close_history(file_history)
   orbital.output_restart(config, dimension_dict, geom_dict, iteration, var_conserv, var_conserv_prev)
   #orbital.output_tecplot(config, dimension_list, grid_list, geom_dict, iteration, var_primitiv, var_primitiv_bd, var_gradient, var_limiter)
   orbital.routine_postprocess(config, iteration, meshnode_dict, meshelem_dict, metrics_dict, gas_property_dict, var_primitiv)

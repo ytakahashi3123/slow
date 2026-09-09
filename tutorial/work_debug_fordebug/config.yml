@@ -202,6 +202,12 @@ post_process:
   flag_output_vtk: True
   filename_output_vtk: output.vtk
 
+  # Output (residual history, CSV)
+  # --ログとは別に、収束の履歴を機械的に扱える形で残す。内部反復ごとに 1 行
+  # --項目を省略した場合は出力する (True, history.csv)
+  flag_output_history: True
+  filename_output_history: history.csv
+
   # Flat to output initial state (iteration=0)
   flag_output_initial_state: True
 

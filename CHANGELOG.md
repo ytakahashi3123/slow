@@ -20,6 +20,16 @@ All notable changes to this project will be documented in this file.
     相対／絶対の判定が両者で同じ向きであることも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
+- `src/slow/general/history.py` 残差の履歴を CSV で出力するようにした（`output_result/history.csv`）
+  - 列は `iteration, iteration_inner, residual_{rho,momx,momy,momz,energy},
+    deltaq_{...}`。内部反復ごとに 1 行を追記する。値は `%.17g` で書くので倍精度が丸まらない
+  - `config.yml` の `post_process` に `flag_output_history` / `filename_output_history` を追加。
+    どちらも省略可で、省略時は `True` / `history.csv`（既存の `config.yml` はそのまま使える）
+  - リスタート計算では追記し、見出し行を重ねて書かない。`explicit_euler` は delta Q を
+    持たないので `deltaq_*` は空欄になる
+  - 行ごとに flush するので、異常終了しても書けた分は残る
+  - 検証: ログの `Residuals` / `Delta Q` の値と CSV が完全一致することを確認。
+    既存の `log_slow` / `output_restart` / VTK は 4 通りの設定でビット一致
 - `src/slow/general/logging_setup.py` ログ出力を `logging` に統一した（`print` を全廃）
   - `configure_logging(level, stream, filename, fmt)` で初期化する。`cli.py:main()` の先頭で呼ぶ
   - 既定は標準出力へ素のメッセージのみ（書式 `%(message)s`）。レベル名や時刻を付けないのは、
