@@ -6,6 +6,7 @@
 # Date; 2026/09/09
 
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,25 @@ def get_kind_dissipation(config):
   return kind_dissipation
 
 
+def check_timestep_positive(name, value, n_cell):
+  """
+  Stop with a readable message when a time step used as a divisor is not positive
+
+  volume/var_dt をそのまま計算すると 0 除算で対角が inf になり、delta Q が 0 になる。
+  例外も警告も出ないまま「反復しても解が動かない」計算になってしまうので、
+  ここで止めて原因を示す。
+  """
+
+  if value > 0.0 :
+    return
+
+  logger.error('Error: %s must be positive but is %s (cell %s)', name, value, n_cell)
+  logger.error('--check courant_number / timestep_constant / timestep_outer of the control file')
+  logger.error('Program stopped')
+  # 呼び出し側のスクリプトから失敗を検知できるよう 0 以外で終了する
+  sys.exit(1)
+
+
 def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev,
                   num_conserv_prev_level=NUM_PREV_LEVEL_REQUIRED_BDF2):
   """
@@ -68,12 +88,17 @@ def get_time_term(config, n_cell, volume, var_dt, var_conserv, var_conserv_prev,
      num_conserv_prev_level < NUM_PREV_LEVEL_REQUIRED_BDF2 :
     kind_backward_difference = '1st_backward_diff'
 
+  # 0 除算を黙って inf にしないよう、割る前に確かめる
+  check_timestep_positive('pseudo time step (var_dt)', var_dt[n_cell], n_cell)
+
   if kind_steady_mode == 'steady' :
     # Steady flow
     return volume[n_cell]/var_dt[n_cell], 0.0, 0.50*lusgs_beta
 
   elif kind_steady_mode == 'unsteady' :
     # Unsteady flow with Pseudo-time stepping
+    check_timestep_positive('timestep_outer', var_dt_const, n_cell)
+
     if kind_backward_difference == '2nd_backward_diff' :
       # - 2nd order accuracy backward difference
       # - (Volume*(3/2dt+1/d_tau) + 0.5*eigenvalue)

@@ -6,6 +6,7 @@
 # Date; 2022/03/25
 
 import logging
+import sys
 import numpy as np
 from slow.orbital.orbital import orbital
 from slow.time_integration import lusgs
@@ -182,6 +183,18 @@ class time_integration(orbital):
       logger.info('Error in kind_time_fix of control file:  %s', kind_time_determine)
       logger.info('Program stopped')
       exit()
+
+    # 時間刻みは陰解演算子の対角で volume/var_dt として割られる。
+    # 0 や負のまま進むと対角が inf になり、警告も出ないまま解が動かなくなるので
+    # ここで気付けるようにしておく（courant_number: 0 などの設定間違いを拾う）
+    if not np.all( var_dt > 0.0 ) :
+      n_cell_bad = int( np.argmin(var_dt) )
+      logger.error('Error: time step must be positive but is %s (cell %s)', var_dt[n_cell_bad], n_cell_bad)
+      logger.error('--kind_time_determine: %s', kind_time_determine)
+      logger.error('--courant_number: %s, timestep_constant: %s', courant_number, timestep_constant)
+      logger.error('Program stopped')
+      # 呼び出し側のスクリプトから失敗を検知できるよう 0 以外で終了する
+      sys.exit(1)
 
     # Display
     logger.info('Maximum time step: %s %s %s', np.max(var_dt), 'Minimum time step:', np.min(var_dt))

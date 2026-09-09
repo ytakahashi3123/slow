@@ -204,3 +204,49 @@ def test_previous_conservative_shift_counts_up_the_available_history():
 
   var_conserv_prev, level = ti.set_conservative_previous(config, var_conserv, var_conserv_prev, level)
   assert level == 2
+
+
+@pytest.mark.parametrize('kind_steady_mode', ['steady', 'unsteady'])
+@pytest.mark.parametrize('var_dt_bad', [0.0, -1.0e-7])
+def test_non_positive_pseudo_timestep_stops_the_program(kind_steady_mode, var_dt_bad):
+  """
+  volume/var_dt の 0 除算で黙って進まないこと。
+
+  ガードが無いと対角が inf になり、delta Q が 0 になる。例外も警告も出ないため
+  「反復しても解が動かない」計算になってしまう。設定間違い（courant_number: 0 など）
+  で起こりうるので、原因を示して止める。
+  """
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  var_dt = var_dt.copy()
+  var_dt[1] = var_dt_bad
+  config = make_config(kind_steady_mode=kind_steady_mode)
+
+  # 正常なセルはそのまま計算できる
+  lusgs.get_time_term(config, 0, volume, var_dt, var_conserv, var_conserv_prev)
+
+  with pytest.raises(SystemExit):
+    lusgs.get_time_term(config, 1, volume, var_dt, var_conserv, var_conserv_prev)
+
+
+@pytest.mark.parametrize('timestep_outer_bad', [0.0, -1.0e-6])
+def test_non_positive_timestep_outer_stops_the_program(timestep_outer_bad):
+  # 非定常では volume/timestep_outer でも割るので、こちらも確かめる
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  config = make_config(kind_steady_mode='unsteady', timestep_outer=timestep_outer_bad)
+
+  with pytest.raises(SystemExit):
+    lusgs.get_time_term(config, 0, volume, var_dt, var_conserv, var_conserv_prev)
+
+
+def test_positive_timesteps_are_left_alone():
+  # ガードが正常な計算を邪魔しないこと（対角は volume/var_dt のまま）
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  config = make_config(kind_steady_mode='steady')
+
+  for n_cell in range(0, NUM_CELL):
+    diag_time, _, _ = lusgs.get_time_term(config, n_cell, volume, var_dt, \
+                                          var_conserv, var_conserv_prev)
+    assert diag_time == pytest.approx(volume[n_cell]/var_dt[n_cell], rel=1.0e-14)

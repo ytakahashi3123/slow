@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file.
     凍結した 25 セル格子で固定する
   - `tests/test_convergence_check.py` 内側・外側ループの収束判定を固定する。
     相対／絶対の判定が両者で同じ向きであることも確認する
+  - `tests/test_gradient_boundary.py` Green-Gauss の境界寄与を検証する。境界面が内部面より
+    多い最小の格子（正方形セル 2 個、内部面 1 枚・境界面 6 枚）を組み、境界ループが動くことと、
+    線形場に対して勾配が厳密に再現されることを固定する。境界の重みが距離に依らないことも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `src/slow/general/history.py` 残差の履歴を CSV で出力するようにした（`output_result/history.csv`）
@@ -75,6 +78,20 @@ All notable changes to this project will be documented in this file.
   （`area_vec[3]` は現状常に 0 なので数値は不変。3D 化に備えた整理）
 
 ### Fixed
+- `src/slow/gradient/gradient.py:get_gradient` の境界ループが内部面用の `length`
+  （`2 x num_face_inner`）を境界面番号で引いていた（正は `length_boundary`）。
+  重みは `dl_n = dl_s*vcell` なので `dl_s` が約分され結果は正しかったが、
+  `num_face_boundary > num_face_inner` の格子では `IndexError` で起動できなかった。
+  チュートリアルの格子はどれも内部面のほうが多く、スナップショット回帰では踏めていなかった
+  - 修正は挙動不変。`tests/test_rhs_snapshot.py` (`rtol=1e-12`) が通り、
+    デバッグ格子 8 反復を 6 通りの設定で流して `log_slow` / `output_restart` / VTK /
+    `history.csv` がビット一致することを確認済み
+- 時間刻みによる 0 除算にガードを入れた。`courant_number: 0` や `timestep_outer: 0` のような
+  設定で `volume/var_dt` が `inf` になり、対角が `inf`、`delta Q` が 0 になって
+  「反復しても解が動かない」計算が**警告も出ずに正常終了していた**（`courant_number: 0` では
+  ログに `inf` すら現れない）。`lusgs.check_timestep_positive` で `var_dt` と `timestep_outer` を、
+  `time_integration.set_timestep` で全セルの `var_dt` を確かめ、原因を示して
+  `sys.exit(1)` で止める（従来の `exit()` は終了コード 0 になり、呼び出し側から失敗を検知できない）
 - `src/slow/time_integration/time_integration.py` 未知の `kind_time_scheme` を指定したときの
   エラー処理が `kind_time_shceme`（綴り間違い）を参照しており、意図したメッセージではなく
   `NameError` で落ちていた

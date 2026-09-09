@@ -129,8 +129,11 @@ class gradient(orbital):
       area        = area_vec_bd[0,n_face]
       vec_x       = area*area_vec_bd[1,n_face]
       vec_y       = area*area_vec_bd[2,n_face]
-      dl_s   = length[0,n_face]
-      dl_n   = length[0,n_face]*float(virtualcell_bd[n_face])
+      # 境界面なので境界面用の距離を使う（内部面用の length は
+      #  2 x num_face_inner なので num_face_boundary > num_face_inner で添字が溢れる）
+      # なお重みは dl_n = dl_s*vcell なので dl_s が約分され、仮想セルの有無だけで決まる
+      dl_s   = length_bd[n_face]
+      dl_n   = length_bd[n_face]*float(virtualcell_bd[n_face])
       fact_m = dl_s/(dl_s+dl_n)
       fact_p = dl_n/(dl_s+dl_n)
       var_face = fact_p*var_primitiv[:,n_cell_self]+fact_m*var_primitiv_bd[:,n_face]
