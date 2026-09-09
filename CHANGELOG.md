@@ -42,7 +42,9 @@ All notable changes to this project will be documented in this file.
 - `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループと
   セルごとの時間項（スカラー散逸）
   - 実測: `get_diagonal` が **77 ms --> 0.17 ms（453 倍）**。**ビット一致**
-- **内側反復の合計が 1,254 ms --> 4.9 ms（256 倍）**（ノズル格子 7,325 セル）
+- **内側反復の合計が 1,254 ms --> 4.9 ms（256 倍）**（ノズル格子 7,325 セル）。
+  実行全体ではノズル格子・外側 5 反復（内部反復 125 回）が **166.8 秒 --> 2.4 秒（約 70 倍）**
+  （初回は JIT のコンパイルに約 4.5 秒かかるので 6.9 秒）。解の差は 1.2e-15
 - `src/slow/rhs/advection_kernel.py` 移流流束（SLAU2 / Haenel）と面ループを切り出した。
   もとは入れ子関数がクロージャで変数をやりとりしていたのを、引数と戻り値を明示した
   独立した関数にした（`get_flux_slau2` / `get_flux_haenel` / `accumulate_advection`）。

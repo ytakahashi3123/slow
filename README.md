@@ -109,12 +109,31 @@ used for the off-diagonal part is selected by `kind_lusgs_dissipation`:
 陰解演算子が違っても収束後の解は一致する。項目を省略した場合は `scalar` になる。
 
 
+## Performance
+
+面ループ・セルループは `*_kernel.py` に切り出してあり、`numba` が入っていれば
+コンパイルされる。`numba` は**任意依存**で、無くても動く（遅いだけ）。
+
+```console
+pip install -e ".[fast]"      # numba を入れる
+SLOW_DISABLE_NUMBA=1 slow     # 明示的に切る（デバッグ時）
+```
+
+実測（ノズル格子 7,325 セル）: 内側反復 1 回が 1,254 ms --> 4.9 ms、
+外側 5 反復の実行全体で 166.8 秒 --> 2.4 秒。結果は変わらない（差は 1e-15 程度）。
+内訳と方針は [docs/performance.md](docs/performance.md) を参照。
+
+
 ## Requirements
 
 - python (version >= 3.9)
 - numpy (version >= 1.22)
 - pyyaml (version >= 6.0)
 - gmsh (version >= 4.9.5)
+
+Optional:
+
+- numba (version >= 0.59) 面ループ・セルループのコンパイルに使う
 
 
 # Contact:
