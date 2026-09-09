@@ -31,6 +31,16 @@ All notable changes to this project will be documented in this file.
 - `src/slow/general/thermodynamics.py` カーネルから呼べる熱力学関係（音速・全エンタルピー・
   最大固有値）。`orbital` の同名メソッドおよび `time_integration/eigenvalue.py` と
   ビット一致することを `tests/test_thermodynamics.py` で固定している（各 20,000 サンプル）
+- `src/slow/rhs/advection_kernel.py` 移流流束（SLAU2 / Haenel）と面ループを切り出した。
+  もとは入れ子関数がクロージャで変数をやりとりしていたのを、引数と戻り値を明示した
+  独立した関数にした（`get_flux_slau2` / `get_flux_haenel` / `accumulate_advection`）。
+  スキームの選択はカーネル内で文字列分岐させないよう整数の識別子で渡す
+  - 実測: `slau2` が **296 ms --> 0.85 ms（348 倍）**、`haenel` が **238 ms --> 0.72 ms（330 倍）**
+  - スキーム内部の二乗を `x*x` にしたため結果が 1.2e-15 だけ変わる。
+    `tests/test_rhs_snapshot.py` (`rtol=1e-12`) は両スキームで通る。
+    デバッグ格子の定常を収束まで流すと **収束反復数は同一**（`slau2` 205、`haenel` 489、
+    `eps_muscl: 0.5` で 207）、収束解の差は 8e-16--1.5e-15
+  - numba を有効にした版と素の Python 版はビット一致する
 - `src/slow/time_integration/lusgs_sweep_kernel.py` LU-SGS の前進・後退スイープ
   （スカラー散逸）の面ループを素の関数として切り出した。`flux_jacobian.set_flux_jacobian` も
   カーネルから呼べるようにした（コンパイル版と素の Python 版がビット一致することを確認済み）
