@@ -22,6 +22,12 @@ All notable changes to this project will be documented in this file.
     多い最小の格子（正方形セル 2 個、内部面 1 枚・境界面 6 枚）を組み、境界ループが動くことと、
     線形場に対して勾配が厳密に再現されることを固定する。境界の重みが距離に依らないことも確認する
   - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値 (`tests/data/rhs_snapshot.npz`) との一致を確認する
+- `docs/verification.md` 数値部分の検証方法をまとめた。実際に使って有効だった 7 つの型
+  （複素ステップ微分による解析的恒等式、陰解演算子を密行列に組み直しての突き合わせ、
+  故意にバグを入れてテストの検出力を確かめる、時間精度の次数測定、前後のビット比較、
+  幾何・離散化の恒等式、異常系の挙動確認）と、それぞれで実際に見つかった不具合、
+  および踏んだ落とし穴を記録している。検証していない範囲も明記した。
+  `README.md` から参照する
 - `pyproject.toml` `pip install -e .` でインストールでき、`slow` コマンドと `python3 -m slow` が使えるようになった
 - `src/slow/general/history.py` 残差の履歴を CSV で出力するようにした（`output_result/history.csv`）
   - 列は `iteration, iteration_inner, residual_{rho,momx,momy,momz,energy},

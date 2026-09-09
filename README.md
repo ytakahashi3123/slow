@@ -71,11 +71,19 @@ pytest
 - `tests/test_flux_jacobian.py` LU-SGS の流束ヤコビアンを厳密な微分と突き合わせる
 - `tests/test_eigenvalue.py` LU-SGS が用いる最大固有値の定義を固定する
 - `tests/test_roe_dissipation.py` 行列散逸 `|A_Roe|=P|Lambda|P^-1` を検証する
-- `tests/test_lusgs_options.py` LU-SGS の設定（散逸の種類・時間項）を固定する
+- `tests/test_lusgs_options.py` LU-SGS の設定（散逸の種類・時間項）と時間刻みのガードを固定する
+- `tests/test_lusgs_sweep.py` LU-SGS のスイープを、密行列に組み直した `D`, `L`, `U` と突き合わせる
+- `tests/test_gradient_boundary.py` Green-Gauss の境界寄与を線形場の厳密再現で検証する
+- `tests/test_convergence_check.py` 内側・外側ループの収束判定を固定する
 - `tests/test_rhs_snapshot.py` メッシュ読み込みから残差までを通し、基準値との一致を確認する
 
 `tests/test_rhs_snapshot.py` は残差の値を意図的に変えたときだけ基準値を作り直す
 （手順はファイル先頭のコメントを参照）。
+
+数値部分の検証に使っている方法は [docs/verification.md](docs/verification.md) にまとめてある。
+複素ステップ微分による解析的恒等式、陰解演算子を密行列に組み直しての突き合わせ、
+時間精度の次数測定、前後のビット比較など。新しい数値を入れるとき、あるいは
+「挙動は変えていない」と主張するときは、そこに書いてある型のどれかで裏を取る。
 
 
 ## Example
