@@ -64,12 +64,15 @@ def get_diagonal(config, dimension_dict, geom_dict, metrics_dict, gas_property_d
 
 
   # Diagonal element for factoriization matrix and delta Q
-  for n_cell in range(0,num_cell):
-    diag_time, dq_unst, face_scale = lusgs.get_time_term(config, n_cell, volume, var_dt, \
-                                                         var_conserv, var_conserv_prev, \
-                                                         num_conserv_prev_level)
-    var_diagonal[n_cell] = diag_time + face_scale*var_diagonal[n_cell]
-    var_dq[:,n_cell]     = ( -var_rhs[:,n_cell]-dq_unst )/var_diagonal[n_cell]
+  # 設定は 1 回だけ解決し、時間刻みの正値性もまとめて確かめる
+  kind_time, timestep_outer, face_scale = lusgs.get_time_setting(config, num_conserv_prev_level)
+  lusgs.check_timestep_array(kind_time, var_dt, timestep_outer)
+
+  var_diagonal, var_dq = lusgs_diagonal_kernel.apply_time_term_scalar(
+                           kind_time, lusgs.KIND_TIME_STEADY, lusgs.KIND_TIME_BDF2,
+                           num_cell, num_conserv, timestep_outer, face_scale,
+                           volume, var_dt, var_conserv, var_conserv_prev, var_rhs,
+                           var_diagonal, var_dq)
 
 
   return var_diagonal, var_dq

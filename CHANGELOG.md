@@ -39,11 +39,10 @@ All notable changes to this project will be documented in this file.
   - 実測: `get_characteristic_time` が **47 ms --> 0.11 ms（424 倍）**、
     `update_primitive` が **13 ms --> 1.80 ms（7.1 倍）**。どちらも**ビット一致**
   - `update_primitive` は負値検査のセルループが Python 側に残っている（1.8 ms）
-- `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループ（スカラー散逸）
-  - 実測: `get_diagonal` が **77 ms --> 32.4 ms（2.4 倍）**。**ビット一致**
-  - セルごとの時間項（`lusgs.get_time_term` を 1 セルずつ呼ぶ）が残っており、
-    そこが 32.4 ms の大半を占める
-- **内側反復の合計が 1,254 ms --> 53.1 ms（23.6 倍）**（ノズル格子 7,325 セル）
+- `src/slow/time_integration/lusgs_diagonal_kernel.py` LU-SGS 対角の面ループと
+  セルごとの時間項（スカラー散逸）
+  - 実測: `get_diagonal` が **77 ms --> 0.17 ms（453 倍）**。**ビット一致**
+- **内側反復の合計が 1,254 ms --> 19.0 ms（66 倍）**（ノズル格子 7,325 セル）
 - `src/slow/rhs/advection_kernel.py` 移流流束（SLAU2 / Haenel）と面ループを切り出した。
   もとは入れ子関数がクロージャで変数をやりとりしていたのを、引数と戻り値を明示した
   独立した関数にした（`get_flux_slau2` / `get_flux_haenel` / `accumulate_advection`）。
@@ -124,6 +123,12 @@ All notable changes to this project will be documented in this file.
     （いずれも流れ場が発達するほど効果が大きい）。差し引きで有利
 
 ### Changed
+- `src/slow/time_integration/lusgs.py` 時間項の設定を 1 回だけ解決する
+  `get_time_setting` を切り出した。従来は `get_time_term` がセルごとに config の辞書を
+  4 回引いており、7,325 セルでは対角の計算時間の大半を占めていた。
+  併せて時間刻みの正値性の確認もセルごとから 1 回（`check_timestep_array`）に変えた。
+  `get_time_term` の signature と挙動は変えていない（行列散逸版とテストがそのまま使う）。
+  カーネル側の式が `get_time_term` と一致することは `tests/test_lusgs_options.py` で固定
 - 数値計算で使う二乗を `x**2` から `x*x` にそろえた（`orbital.get_enthalpy` /
   `get_total_energy` / `get_primitive`、`rhs/advection.py` の `q2_l` / `q2_r`）。
   `x**2` と `x*x` は倍精度で 0.09% の値について 1 ULP 違い、numba は `x**2` を

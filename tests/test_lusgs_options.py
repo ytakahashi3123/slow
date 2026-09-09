@@ -250,3 +250,79 @@ def test_positive_timesteps_are_left_alone():
     diag_time, _, _ = lusgs.get_time_term(config, n_cell, volume, var_dt, \
                                           var_conserv, var_conserv_prev)
     assert diag_time == pytest.approx(volume[n_cell]/var_dt[n_cell], rel=1.0e-14)
+
+
+# ---------------------------------------------------------------- 時間項の 2 つの実装が一致すること
+
+TIME_SETTING_CASES = [
+  pytest.param('steady',   '2nd_backward_diff', 1.01, id='steady'),
+  pytest.param('unsteady', '1st_backward_diff', 1.01, id='unsteady-bdf1'),
+  pytest.param('unsteady', '2nd_backward_diff', 1.01, id='unsteady-bdf2'),
+]
+
+
+@pytest.mark.parametrize('kind_steady_mode, kind_backward_difference, lusgs_beta', TIME_SETTING_CASES)
+@pytest.mark.parametrize('num_conserv_prev_level', [1, 2])
+def test_time_term_kernel_matches_the_reference(kind_steady_mode, kind_backward_difference,
+                                                lusgs_beta, num_conserv_prev_level):
+  """
+  セルループのカーネルが get_time_term と同じ値を出すこと。
+
+  get_time_term はセルごとに config の辞書を 4 回引くので、7,000 セル規模では
+  それが対角の計算時間の大半を占めていた。カーネル側は設定を整数に解決してから
+  受け取るが、式は同じでなければならない。ここが崩れると陰解演算子が静かに狂う。
+  """
+
+  from slow.time_integration import lusgs_diagonal_kernel
+
+  volume, var_dt, var_conserv, var_conserv_prev = make_state()
+  timestep_outer = 1.0e-4
+  config = make_config(kind_steady_mode=kind_steady_mode,
+                       kind_backward_difference=kind_backward_difference,
+                       lusgs_beta=lusgs_beta, timestep_outer=timestep_outer)
+
+  var_rhs = np.arange(1.0, 1.0 + NUM_CONSERV*NUM_CELL).reshape(NUM_CONSERV, NUM_CELL)*1.0e-3
+
+  # 面の寄与に相当する値を入れておく（対角がゼロから始まると face_scale が効かない）
+  diagonal_face = np.array([3.0e-2, 7.0e-2, 1.1e-1])
+
+  # --参照: get_time_term をセルごとに呼ぶ従来の形
+  diag_ref = diagonal_face.copy()
+  dq_ref   = np.zeros((NUM_CONSERV, NUM_CELL))
+  for n_cell in range(0, NUM_CELL):
+    diag_time, dq_unst, face_scale = lusgs.get_time_term(
+        config, n_cell, volume, var_dt, var_conserv, var_conserv_prev, num_conserv_prev_level)
+    diag_ref[n_cell] = diag_time + face_scale*diag_ref[n_cell]
+    dq_ref[:,n_cell] = ( -var_rhs[:,n_cell]-dq_unst )/diag_ref[n_cell]
+
+  # --カーネル
+  kind_time, timestep_outer_resolved, face_scale = lusgs.get_time_setting(config, num_conserv_prev_level)
+  diag_new = diagonal_face.copy()
+  dq_new   = np.zeros((NUM_CONSERV, NUM_CELL))
+  lusgs_diagonal_kernel.apply_time_term_scalar(
+      kind_time, lusgs.KIND_TIME_STEADY, lusgs.KIND_TIME_BDF2,
+      NUM_CELL, NUM_CONSERV, timestep_outer_resolved, face_scale,
+      volume, var_dt, var_conserv, var_conserv_prev, var_rhs, diag_new, dq_new)
+
+  np.testing.assert_allclose(diag_new, diag_ref, rtol=0.0, atol=0.0)
+  np.testing.assert_allclose(dq_new, dq_ref, rtol=0.0, atol=0.0)
+
+
+def test_time_setting_resolves_the_startup_fallback():
+  # 段数が足りないときに BDF2 が BDF1 に落ちることを、解決した識別子の側でも固定する
+
+  config = make_config(kind_backward_difference='2nd_backward_diff')
+
+  assert lusgs.get_time_setting(config, 2)[0] == lusgs.KIND_TIME_BDF2
+  assert lusgs.get_time_setting(config, 1)[0] == lusgs.KIND_TIME_BDF1
+
+
+@pytest.mark.parametrize('kind_steady_mode, kind_backward_difference',
+                         [('transient', '2nd_backward_diff'),
+                          ('unsteady', '3rd_backward_diff')])
+def test_unknown_time_scheme_stops_get_time_setting(kind_steady_mode, kind_backward_difference):
+  config = make_config(kind_steady_mode=kind_steady_mode,
+                       kind_backward_difference=kind_backward_difference)
+
+  with pytest.raises(SystemExit):
+    lusgs.get_time_setting(config)

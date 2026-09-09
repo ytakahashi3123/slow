@@ -91,3 +91,49 @@ def accumulate_diagonal_scalar(num_face, num_face_bd, num_primitiv,
     var_diagonal[n_cell_a] = var_diagonal[n_cell_a] + eigenvalue*area
 
   return var_diagonal
+
+
+@kernel
+def apply_time_term_scalar(kind_time, kind_time_steady, kind_time_bdf2,
+                           num_cell, num_conserv, timestep_outer, face_scale,
+                           volume, var_dt, var_conserv, var_conserv_prev, var_rhs,
+                           var_diagonal, var_dq):
+  """
+  Add the time-derivative term to the diagonal and set var_dq = D^-1 * ( -RHS - unsteady )
+
+  lusgs.get_time_term と同じ式をセルループとして書いたもの。設定は整数の識別子に
+  解決済みで渡ってくる（セルごとに config の辞書を引き直さないため）。
+
+  時間刻みの正値性は呼び出し側で `lusgs.check_timestep_array` により確認済みとする。
+  両者が一致することは tests/test_lusgs_options.py で固定している。
+  """
+
+  for n_cell in range(0,num_cell):
+
+    if kind_time == kind_time_steady :
+      # Steady flow
+      diag_time = volume[n_cell]/var_dt[n_cell]
+      var_diagonal[n_cell] = diag_time + face_scale*var_diagonal[n_cell]
+      for m in range(0,num_conserv):
+        var_dq[m,n_cell] = ( -var_rhs[m,n_cell] )/var_diagonal[n_cell]
+
+    elif kind_time == kind_time_bdf2 :
+      # - 2nd order accuracy backward difference
+      # - (Volume*(3/2dt+1/d_tau) + 0.5*eigenvalue)
+      diag_time = 1.50*volume[n_cell]/timestep_outer + volume[n_cell]/var_dt[n_cell]
+      var_diagonal[n_cell] = diag_time + face_scale*var_diagonal[n_cell]
+      for m in range(0,num_conserv):
+        dq_unst = ( 1.50*var_conserv[m,n_cell] - 2.0*var_conserv_prev[0,m,n_cell]    \
+                  + 0.50*var_conserv_prev[1,m,n_cell] )*volume[n_cell]/timestep_outer
+        var_dq[m,n_cell] = ( -var_rhs[m,n_cell]-dq_unst )/var_diagonal[n_cell]
+
+    else :
+      # - 1st order accuracy backward difference
+      # - (Volume*(1/dt+1/d_tau) + 0.5*eigenvalue)
+      diag_time = volume[n_cell]/timestep_outer + volume[n_cell]/var_dt[n_cell]
+      var_diagonal[n_cell] = diag_time + face_scale*var_diagonal[n_cell]
+      for m in range(0,num_conserv):
+        dq_unst = ( var_conserv[m,n_cell] - var_conserv_prev[0,m,n_cell] )*volume[n_cell]/timestep_outer
+        var_dq[m,n_cell] = ( -var_rhs[m,n_cell]-dq_unst )/var_diagonal[n_cell]
+
+  return var_diagonal, var_dq
