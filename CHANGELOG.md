@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-09-11
 ### Added
 - `tutorial/work_nozzle_prism_fast` / `tutorial/work_sphere_chimera_fast` を新設。
   `numba` を入れた状態で長い非定常計算を回すためのチュートリアル。物理設定は元のケースと
