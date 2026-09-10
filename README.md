@@ -10,6 +10,282 @@ Note: the current implementation is **two-dimensional**. Three-dimensional suppo
 completed yet (`meshdata.py` stops with a message for a 3D mesh).
 
 
+# Governing equations
+
+`SLOW` solves the compressible Navier--Stokes equations in conservative form,
+
+$$
+\frac{\partial \mathbf{Q}}{\partial t} + \nabla \cdot \left( \mathbf{F}_c - \mathbf{F}_v \right) = \mathbf{0},
+\qquad
+\mathbf{Q} = \left( \rho,\ \rho u,\ \rho v,\ \rho w,\ E \right)^{T}
+$$
+
+where the convective and viscous fluxes projected on a face normal $\mathbf{n}$ are
+
+$$
+\mathbf{F}_c \cdot \mathbf{n} =
+\begin{pmatrix}
+\rho U \\
+\rho u U + p\, n_x \\
+\rho v U + p\, n_y \\
+\rho w U + p\, n_z \\
+\rho H U
+\end{pmatrix},
+\qquad
+\mathbf{F}_v \cdot \mathbf{n} =
+\begin{pmatrix}
+0 \\
+\tau_{xj} n_j \\
+\tau_{yj} n_j \\
+\tau_{zj} n_j \\
+\left( \tau_{ij} u_i + \lambda \dfrac{\partial T}{\partial x_j} \right) n_j
+\end{pmatrix},
+\qquad U = \mathbf{u} \cdot \mathbf{n} .
+$$
+
+The viscous stress tensor uses the Stokes hypothesis,
+
+$$
+\tau_{ij} = \mu \left( \frac{\partial u_i}{\partial x_j} + \frac{\partial u_j}{\partial x_i}
+          - \frac{2}{3} \frac{\partial u_k}{\partial x_k} \delta_{ij} \right).
+$$
+
+The system is closed by the ideal gas law,
+
+$$
+p = \rho R T, \qquad
+E = \rho \left( C_v T + \frac{1}{2} \lvert \mathbf{u} \rvert ^2 \right), \qquad
+H = \frac{E + p}{\rho}, \qquad
+c = \sqrt{\frac{\gamma p}{\rho}},
+$$
+
+and the transport coefficients follow Sutherland's law with a constant Prandtl number,
+
+$$
+\mu = \mu_0 \left( \frac{T}{T_0} \right)^{3/2} \frac{T_0 + C_s}{T + C_s},
+\qquad
+\lambda = \frac{\mu\, C_p}{Pr}.
+$$
+
+Laminar flow only; no turbulence model, source term, or chemistry is included.
+
+
+# Numerical schemes
+
+## Finite volume discretisation
+
+A cell-centred finite volume method on an unstructured mesh. Integrating over cell $i$,
+
+$$
+V_i \frac{d \mathbf{Q}_i}{d t}
+  = - \sum_{f \in \partial i} \left( \mathbf{F}_c - \mathbf{F}_v \right) \cdot \mathbf{n}_f\, S_f
+  \equiv - \mathbf{R}_i ,
+$$
+
+where $S_f$ is the face area and $\mathbf{n}_f$ the outward unit normal of cell $i$.
+
+## Gradient and reconstruction
+
+Gradients of the primitive variables $\phi = (\rho, u, v, w, T, p)$ are obtained by the
+Green--Gauss theorem, with the face value interpolated by inverse distance
+($d_i$, $d_j$ are the distances from the face centre to the two cell centres),
+
+$$
+\nabla \phi_i = \frac{1}{V_i} \sum_{f \in \partial i} \phi_f\, \mathbf{n}_f\, S_f ,
+\qquad
+\phi_f = \frac{d_j\, \phi_i + d_i\, \phi_j}{d_i + d_j} .
+$$
+
+The left and right face states are extrapolated from the cell centres (MUSCL),
+
+$$
+\phi_L = \phi_i + \varepsilon\, \Phi_i\, d_i \left( \nabla \phi_i \cdot \mathbf{n} \right),
+\qquad
+\phi_R = \phi_j - \varepsilon\, \Phi_j\, d_j \left( \nabla \phi_j \cdot \mathbf{n} \right),
+$$
+
+where $\mathbf{n}$ points from cell $i$ (left) to cell $j$ (right) and
+$\varepsilon \in [0, 1]$ (`eps_muscl`; $\varepsilon = 0$ gives first order). The slope
+limiter $\Phi_i \in [0, 1]$ is of Barth--Jespersen type: for each face of the cell,
+
+$$
+\Phi_i = \min_{f \in \partial i}
+\min \left[ 1, \ \max \left( 0, \ \frac{\Delta_i^{\pm}}{\Delta_f} \right) \right],
+\qquad
+\Delta_f = \left( \nabla \phi_i \cdot \mathbf{n}_f \right) \left( d_i + d_j \right),
+$$
+
+where $\Delta_i^{+} = \phi_i^{\max} - \phi_i$ if $\Delta_f \ge 0$ and
+$\Delta_i^{-} = \phi_i^{\min} - \phi_i$ otherwise, the extrema being taken over the
+face neighbours of cell $i$ and the cell itself.
+
+## Convective flux
+
+Two upwind schemes are available (`advection_scheme`). Both split the flux into a mass
+flux and a pressure term,
+
+$$
+\mathbf{F}_c \cdot \mathbf{n} =
+\dot{m}^{+} \boldsymbol{\psi}_L + \dot{m}^{-} \boldsymbol{\psi}_R + \tilde{p}\, \mathbf{n}_p,
+\qquad
+\boldsymbol{\psi} = \left( 1,\ u,\ v,\ w,\ H \right)^{T},
+\qquad
+\dot{m}^{\pm} = \frac{\dot{m} \pm \lvert \dot{m} \rvert}{2},
+$$
+
+where $\mathbf{n}_p = (0, n_x, n_y, n_z, 0)^T$ carries the pressure.
+
+**SLAU2** (default) is an all-speed scheme whose mass flux is free of a cut-off Mach number:
+
+$$
+\dot{m} = \frac{1}{2} \left[ \rho_L U^{+} + \rho_R U^{-}
+        - \chi\, \frac{p_R - p_L}{\bar{c}} \right],
+\qquad \bar{c} = \frac{c_L + c_R}{2},
+$$
+
+$$
+U^{+} = U_L + \left( 1 - g \right) \overline{\lvert U \rvert} + g \lvert U_L \rvert,
+\qquad
+U^{-} = U_R - \left( 1 - g \right) \overline{\lvert U \rvert} - g \lvert U_R \rvert,
+$$
+
+$$
+\overline{\lvert U \rvert} = \frac{\rho_L \lvert U_L \rvert + \rho_R \lvert U_R \rvert}{\rho_L + \rho_R},
+\qquad
+g = - \max \left[ \min \left( M_L, 0 \right), -1 \right] \cdot
+      \min \left[ \max \left( M_R, 0 \right), 1 \right],
+$$
+
+$$
+\chi = \left( 1 - \bar{M} \right)^2,
+\qquad
+\bar{M} = \min \left( 1, \ \frac{1}{\bar{c}}
+          \sqrt{ \frac{\lvert \mathbf{u}_L \rvert^2 + \lvert \mathbf{u}_R \rvert^2}{2} } \right).
+$$
+
+The pressure flux uses the van Leer type splitting functions $\beta^{\pm}$ evaluated at
+$M_L$ and $M_R$,
+
+$$
+\beta^{\pm} =
+\begin{cases}
+\dfrac{1}{4} \left( 2 \mp M \right) \left( M \pm 1 \right)^2, & \lvert M \rvert < 1 \\
+\dfrac{1}{2} \left( 1 \pm \mathrm{sign}\, M \right), & \lvert M \rvert \ge 1
+\end{cases}
+$$
+
+$$
+\tilde{p} = \frac{p_L + p_R}{2}
+          + \frac{\beta^{+} - \beta^{-}}{2} \left( p_L - p_R \right)
+          + \sqrt{ \frac{\lvert \mathbf{u}_L \rvert^2 + \lvert \mathbf{u}_R \rvert^2}{2} }
+            \left( \beta^{+} + \beta^{-} - 1 \right) \frac{\rho_L + \rho_R}{2} \bar{c} .
+$$
+
+**Haenel** is the van Leer flux vector splitting in Hänel's form, in which each side uses
+its own speed of sound,
+
+$$
+U^{+} = \frac{\left( U_L + c_L \right)^2}{4 c_L},
+\quad
+p^{+} = \frac{p_L}{4} \left( M_L + 1 \right)^2 \left( 2 - M_L \right)
+\qquad \left( \lvert M_L \rvert \le 1 \right),
+$$
+
+$$
+U^{-} = - \frac{\left( U_R - c_R \right)^2}{4 c_R},
+\quad
+p^{-} = \frac{p_R}{4} \left( M_R - 1 \right)^2 \left( 2 + M_R \right)
+\qquad \left( \lvert M_R \rvert \le 1 \right),
+$$
+
+reducing to the fully upwind values for supersonic normal Mach numbers, with
+$\dot{m} = \rho_L U^{+} + \rho_R U^{-}$ and $\tilde{p} = p^{+} + p^{-}$.
+
+## Viscous flux
+
+The face gradients are the arithmetic mean of the two adjacent cell gradients, and the
+transport coefficients are averaged in the same way. No non-orthogonality correction is
+applied.
+
+## Time integration
+
+The pseudo time step of each cell follows from the spectral radius of the flux Jacobian
+including a viscous contribution,
+
+$$
+\lambda_f = \lvert U \rvert + c + \frac{2 \mu}{\rho\, d},
+\qquad
+\Delta \tau_i = \mathrm{CFL} \cdot \frac{V_i}{\max_{f \in \partial i} \left( \lambda_f S_f \right)} ,
+$$
+
+used either per cell (local) or as a single global minimum.
+
+For unsteady flow, the physical time derivative is discretised by a backward difference
+(BDF1 or BDF2) and the resulting nonlinear system is driven to convergence in pseudo time,
+
+$$
+V_i \frac{\Delta \mathbf{Q}_i}{\Delta \tau_i}
++ V_i \frac{3 \mathbf{Q}_i^{n+1} - 4 \mathbf{Q}_i^{n} + \mathbf{Q}_i^{n-1}}{2 \Delta t}
+= - \mathbf{R}_i \left( \mathbf{Q}^{n+1} \right).
+$$
+
+Because BDF2 needs two stored levels, the very first step after a fresh start falls back
+to BDF1; using BDF2 there would leave an $O(\Delta t)$ error that degrades the whole run
+to first order.
+
+The linear system of each inner iteration is solved by LU--SGS, which factorises the
+implicit operator without ever forming it as a matrix,
+
+$$
+\left( \mathbf{D} + \mathbf{L} \right) \mathbf{D}^{-1}
+\left( \mathbf{D} + \mathbf{U} \right) \Delta \mathbf{Q} = - \mathbf{R} - \mathbf{R}_{\mathrm{unst}},
+$$
+
+with the diagonal and the off-diagonal blocks
+
+$$
+\mathbf{D}_i = \left( \frac{V_i}{\Delta \tau_i} + \frac{3 V_i}{2 \Delta t} \right) \mathbf{I}
+             + \theta \sum_{f \in \partial i} \mathbf{A}^{+}_f S_f ,
+\qquad
+\mathbf{A}^{\mp}_{f} = \frac{1}{2} \left( \mathbf{A} \left( \mathbf{Q}_j, \mathbf{n}_f \right)
+                        \mp \mathbf{\Gamma}_f \right),
+$$
+
+where $\mathbf{A}(\mathbf{Q}, \mathbf{n}) = \partial (\mathbf{F}_c \cdot \mathbf{n}) / \partial \mathbf{Q}$
+is the convective flux Jacobian, $\mathbf{n}_f$ is the outward normal of cell $i$, and
+$\theta = \beta/2$ for steady flow ($\beta$ = `lusgs_beta`, over-relaxation) or $1/2$ for
+unsteady flow. The dissipation $\mathbf{\Gamma}_f$ is selected by `kind_lusgs_dissipation`:
+
+$$
+\mathbf{\Gamma}_f = \lambda_f \mathbf{I}
+\quad (\texttt{scalar}),
+\qquad
+\mathbf{\Gamma}_f = \lvert \mathbf{A}_{\mathrm{Roe}} \rvert = \mathbf{P} \lvert \mathbf{\Lambda} \rvert \mathbf{P}^{-1}
+\quad (\texttt{matrix}),
+$$
+
+with $\mathbf{P}$ the matrix of right eigenvectors of $\mathbf{A}$,
+$\mathbf{\Lambda} = \mathrm{diag}(U, U, U, U + c, U - c)$, and the Roe average
+
+$$
+\mathcal{R} = \sqrt{\frac{\rho_R}{\rho_L}},
+\qquad
+\tilde{\mathbf{u}} = \frac{\mathcal{R} \mathbf{u}_R + \mathbf{u}_L}{\mathcal{R} + 1},
+\qquad
+\tilde{H} = \frac{\mathcal{R} H_R + H_L}{\mathcal{R} + 1},
+\qquad
+\tilde{c} = \sqrt{ \left( \gamma - 1 \right)
+            \left( \tilde{H} - \frac{1}{2} \lvert \tilde{\mathbf{u}} \rvert ^2 \right) } .
+$$
+
+The forward sweep solves $(\mathbf{D} + \mathbf{L}) \Delta \mathbf{Q}^{*} = \mathbf{b}$ and the
+backward sweep $(\mathbf{D} + \mathbf{U}) \Delta \mathbf{Q} = \mathbf{D} \Delta \mathbf{Q}^{*}$.
+See [Implicit operator (LU-SGS)](#implicit-operator-lu-sgs) for the practical differences
+between the two dissipations.
+
+An explicit Euler scheme (`explicit_euler`) is also available for reference.
+
+
 # Installation
 
 ```console
