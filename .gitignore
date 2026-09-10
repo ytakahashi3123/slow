@@ -5,3 +5,8 @@ __pycache__/
 build/
 dist/
 .pytest_cache/
+
+# チュートリアルの実行で生成されるもの
+log_slow
+output_result/
+output_restart/

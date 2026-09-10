@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- `tutorial/work_nozzle_prism_fast` / `tutorial/work_sphere_chimera_fast` を新設。
+  `numba` を入れた状態で長い非定常計算を回すためのチュートリアル。物理設定は元のケースと
+  同一で、反復数 (500 --> 2,000) と出力頻度だけを変えてある。格子は元のケースのものを参照する
+  - 実測（2,000 反復、同一マシン）: ノズル (7,325 セル) **282 秒**、球 (9,359 セル) **362 秒**。
+    `numba` なしは 5 反復の実測（225.8 秒 / 306.2 秒）からの換算で約 25 時間 / 約 34 時間
+  - 毎反復の VTK 書き出しはノズルで約 0.13 秒かかり、1 反復の計算（約 0.14 秒）と同程度に
+    なるため、結果を 50 反復ごと、リスタートを 500 反復ごとに間引いた
+- `tutorial/README.md` ケースの一覧と、`numba` の入れ方・効いていることの確認方法・実測値
+- `.gitignore` にソルバの出力（`log_slow`, `output_result/`, `output_restart/`）を追加。
+  チュートリアルを 1 回流すだけで 58 MB の未追跡ファイルが出ていた
 - `tests/` テストを新設（`pytest` で実行）
   - `tests/test_flux_jacobian.py` LU-SGS の流束ヤコビアンを厳密な微分（複素ステップ）と突き合わせる
   - `tests/test_eigenvalue.py` LU-SGS が用いる最大固有値の定義を固定する

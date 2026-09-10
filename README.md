@@ -50,6 +50,9 @@ cd tutorial/work_nozzle_prism
 ./run_slow.sh
 ```
 
+ケースの一覧と、`numba` を入れて長い非定常計算を回す手順は
+[tutorial/README.md](tutorial/README.md) にある。
+
 
 ## Configuration file
 
