@@ -144,8 +144,9 @@ time_integration:
 
   # LUSGS variables
   # 面の寄与にかける過剰緩和係数。定常計算のときだけ効く。
-  # kind_lusgs_dissipation: matrix を定常で使うとき、格子によっては既定値では
-  # 残差が再上昇して収束しない。そのときは 2.0 程度まで上げる
+  # kind_lusgs_dissipation: matrix を定常で使うとき、格子と courant_number の
+  # 組み合わせによっては残差が再上昇して収束しない。そのときは courant_number を
+  # 下げるか、この値を 2.0 程度まで上げる
   # （実測値と理由は src/config.yml のコメント参照）
   lusgs_beta: 1.1
 

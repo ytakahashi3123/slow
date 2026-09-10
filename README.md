@@ -112,17 +112,26 @@ used for the off-diagonal part is selected by `kind_lusgs_dissipation`:
 陰解演算子が違っても収束後の解は一致する。項目を省略した場合は `scalar` になる。
 
 **`matrix` を定常計算で使うときは残差の履歴 (`output_result/history.csv`) を
-確認すること。** 格子によっては既定の `lusgs_beta` (1.01--1.1) で収束しない
-（chimera 格子は反復 78 から再上昇、ノズル格子は 82 反復で負の状態になって停止）。
-一方 wedge 格子では既定値でも単調で `scalar` より速い。再上昇していたら
-`lusgs_beta` を 2.0 程度まで上げる（chimera で 230 反復・残差 5.9e1 まで収束し、
-`scalar` の 5.4e1 と同水準になる）。tutorial のうち定常なのは `work_wedge` だけで、
-そこでは `matrix` が有利。
+確認すること。** 格子と `courant_number` の組み合わせによっては、残差が下がった
+あと再上昇する（chimera 格子は CFL 5.0 で反復 78 から再上昇、ノズル格子は
+CFL 2.5 で 82 反復で負の状態になって停止）。一方 wedge 格子は CFL 2.5・既定の
+`lusgs_beta` でも単調で `scalar` より速い。
+
+原因は対角重みの不足なので、**`courant_number` を下げる**か **`lusgs_beta` を
+上げる**かのどちらでも解消する。chimera 格子は CFL を 5.0 から 2.5 に下げるだけで
+168 反復・残差 5.1e1 まで収束し、CFL 5.0 のまま `lusgs_beta` を 2.0 にした場合
+(230 反復、5.9e1) より良い。ノズル格子も CFL 1.0 なら 300 反復を単調に完走する
+（ただしこの格子は `scalar` でも定常では 3e6 程度で停滞するので、定常向きの設定
+ではない）。`scalar` は同じ chimera 格子で CFL 20 まで再上昇しないので、両者の
+差は「許容できる CFL の幅」として現れる。
+
 定常では内部反復が 1 回に固定されるので、1 回の掃引の質がそのまま解の質になり、
 対角の重みが足りないと発散する。`scalar` の対角は `lambda=|u.n|+c+2mu/(rho*d)` を使うため
 すべての固有値の絶対値を過大に見積もっており、その余剰が 1 回の掃引を安定化させている。
-`matrix` の対角は正確な `A+` なので、その余剰を `lusgs_beta` で補う必要がある。
+`matrix` の対角は正確な `A+` なので、その余剰を `lusgs_beta` で補うか、
+`courant_number` を下げて時間項 `V/dt` に補わせる必要がある。
 非定常計算では対角が時間項に支配され内部反復も複数回あるため影響しない。
+tutorial のうち定常なのは `work_wedge` だけで、そこでは `matrix` が有利。
 
 
 ## Performance

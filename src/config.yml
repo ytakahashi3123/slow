@@ -134,7 +134,7 @@ time_integration:
   # 面の寄与にかける過剰緩和係数。対角を大きくして 1 回の掃引を安定させる。
   # **定常計算 (kind_steady_mode: steady) のときだけ効く**（非定常では 0.5 固定）。
   # 定常では内部反復が 1 回に固定されるので、1 回の掃引の質がそのまま解の質になる。
-  # kind_lusgs_dissipation: matrix ではこの値を大きくする必要がある（下記参照）
+  # kind_lusgs_dissipation: matrix では対角重みが足りなくなることがある（下記参照）
   lusgs_beta: 1.01
 
   # Dissipation for the LU-SGS implicit operator (non-diagonal blocks)
@@ -145,23 +145,29 @@ time_integration:
   #             約 1.6 倍だが、内部反復の減衰がノズル格子で 1.4--3.3 倍速くなるため
   #             差し引きで有利。収束後の解は scalar と一致する
   #
-  # 【注意】'matrix' を**定常計算**で使うとき、格子によっては既定の lusgs_beta
-  # (1.01--1.1) では収束しない。そのときは lusgs_beta を 2.0 程度まで上げる。実測:
-  #   chimera 格子: beta 1.0/1.1 は反復 78 の 6.2e5 から 2e9 へ再上昇。
-  #                 beta 2.0 で 230 反復・残差 5.9e1 まで収束（scalar の 5.4e1 と同水準）。
-  #                 beta 4.0 は単調だが遅く、10.0 は過減衰して悪化
-  #   ノズル格子:   beta 1.1 は 82 反復で負の密度・温度・圧力になって停止。
-  #                 beta 2.0 なら単調（ただしこの格子は scalar でも定常では
-  #                 反復 240 で停滞して 1.7 倍上昇する。定常向きの設定ではない）
-  #   wedge 格子:   beta 1.1 でも単調で、scalar より速い（300 反復で 1.5e12 対 2.9e12）
-  # つまり常に起きるわけではない。定常で 'matrix' を使うときは残差の履歴
-  # (output_result/history.csv) を見て、再上昇していたら beta を上げること。
+  # 【注意】'matrix' を**定常計算**で使うとき、格子と courant_number の組み合わせに
+  # よっては残差が下がったあと再上昇する。原因は対角重みの不足なので、
+  # **courant_number を下げる**か **lusgs_beta を上げる**かのどちらでも解消する
+  # （時間刻みが小さいほど対角の V/dt が大きくなるので、効く向きは同じ）。実測:
+  #   chimera 格子 (beta 1.1): CFL 5.0 では反復 78 の 6.2e5 から 2e9 へ再上昇。
+  #                 CFL 2.5 なら 168 反復・残差 5.1e1 で収束する。CFL 10/20 は破綻。
+  #                 CFL 5.0 のまま beta 2.0 にしても収まる（230 反復、5.9e1）が、
+  #                 CFL を下げるほうが結果が良い。beta 4.0 は単調だが遅く、10.0 は過減衰
+  #   ノズル格子 (beta 1.1): CFL 2.5 では 82 反復で負の密度・温度・圧力になって停止。
+  #                 CFL 1.0 なら 300 反復を単調に完走する（ただしこの格子は scalar でも
+  #                 定常では 3e6 程度で停滞する。定常向きの設定ではない）
+  #   wedge 格子:   CFL 2.5・beta 1.1 でも単調で、scalar より速い
+  #                 （300 反復で 1.5e12 対 2.9e12）
+  # 'scalar' は同じ chimera 格子で CFL 20 まで再上昇しない。両者の差は
+  # 「許容できる CFL の幅」として現れる、と見るのが実測に合う。
+  # 定常で 'matrix' を使うときは残差の履歴 (output_result/history.csv) を見て、
+  # 再上昇していたら courant_number を半分にするか lusgs_beta を上げること。
   # なお tutorial のうち定常なのは work_wedge だけで、そこでは 'matrix' が有利。
   #
   # 理由は対角の作り方の差である。'scalar' の対角は 0.5*beta*sum(lambda*S) で、
   # lambda=|u.n|+c+2mu/(rho*d) はすべての固有値の絶対値を過大に見積もるため
   # 余剰の対角重みを持つ。'matrix' の対角は正確な beta*sum(A+ *S) なので、
-  # その余剰を beta で補う必要がある。
+  # その余剰を beta で補うか、courant_number を下げて時間項 V/dt に補わせる必要がある。
   # 非定常計算では対角が時間項 V/dt に支配され内部反復も複数回あるため影響しない
   kind_lusgs_dissipation: scalar
 
